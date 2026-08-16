@@ -1,66 +1,71 @@
-name: Deploy Android Internal
+name: Deploy to Google Play (Internal)
 
 on:
   push:
     branches:
-      - main
+      - main 
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js v22
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          node-version: '22'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm install
 
-      - name: Setup Java 17 Zulu
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: zulu
-          java-version: 17
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Expo Prebuild
         run: npx expo prebuild --platform android --clean
 
       - name: Decode Keystore
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/cuyamor.jks
-
-      - name: Build AAB (Release)
-        working-directory: android
         env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          cat > keystore.properties <<EOF
-          storeFile=app/cuyamor.jks
-          storePassword=${ANDROID_KEYSTORE_PASSWORD}
-          keyAlias=${ANDROID_KEY_ALIAS}
-          keyPassword=${ANDROID_KEY_PASSWORD}
-          EOF
-          ./gradlew bundleRelease
+          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/cuyamor.jks
 
-      - name: Create Google Play JSON
+      - name: Build Android App Bundle (.aab)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo '${{ secrets.PLAY_STORE_CONFIG_JSON }}' > google-play.json
+          cd android
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=$(pwd)/app/cuyamor.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
 
-      - name: Setup Ruby 3.2
+      - name: Create Google Play Config JSON
+        run: echo '${{ secrets.PLAY_STORE_CONFIG_JSON }}' > google-play.json
+
+      - name: Setup Ruby for Fastlane
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
+          bundler-cache: true
 
-      - name: Install Fastlane
-        run: gem install fastlane
-
-      - name: Run Fastlane Internal
-        run: fastlane android internal
+      - name: Fastlane - Upload to Google Play
+        run: |
+          gem install fastlane
+          fastlane run upload_to_play_store \
+            track:internal \
+            aab:android/app/build/outputs/bundle/release/app-release.aab \
+            json_key:google-play.json \
+            package_name:com.bosatzu.frontcuyamor \
+            skip_upload_metadata:true \
+            skip_upload_images:true \
+            skip_upload_screenshots:true
