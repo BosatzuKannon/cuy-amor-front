@@ -1,0 +1,69 @@
+name: Deploy Android Internal
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js v22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup Java 17 Zulu
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: react-native-community/setup-android@v3
+
+      - name: Expo Prebuild
+        run: npx expo prebuild --platform android --clean
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/cuyamor.jks
+
+      - name: Build AAB (Release)
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cat > keystore.properties <<EOF
+          storeFile=app/cuyamor.jks
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          EOF
+          ./gradlew bundleRelease
+
+      - name: Create Google Play JSON
+        run: |
+          echo '${{ secrets.PLAY_STORE_CONFIG_JSON }}' > google-play.json
+
+      - name: Setup Ruby 3.2
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - name: Install Fastlane
+        run: gem install fastlane
+
+      - name: Run Fastlane Internal
+        run: fastlane android internal

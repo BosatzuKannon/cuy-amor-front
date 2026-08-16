@@ -33,7 +33,20 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app usa tus fotos para que puedas mostrar tu perfil a tu cuy ideal."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Cuy Amor usa tu ubicación para mostrarte perfiles cercanos en Nariño."
+        }
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

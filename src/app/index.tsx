@@ -1,11 +1,12 @@
 import { AntDesign } from '@expo/vector-icons';
 import { makeRedirectUri } from 'expo-auth-session';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+import { handleAuthUrl } from '@/lib/auth-listener';
+import { AppBackground } from '@/components/ui/app-background';
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
@@ -13,16 +14,6 @@ import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
 
 WebBrowser.maybeCompleteAuthSession();
-
-function FloatingShape({
-  style,
-  color,
-}: {
-  style: object;
-  color: string;
-}) {
-  return <View style={[styles.shape, { backgroundColor: color }, style]} />;
-}
 
 export default function WelcomeScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -33,15 +24,34 @@ export default function WelcomeScreen() {
       const redirectUrl = makeRedirectUri({ scheme: 'frontcuyamor' });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: redirectUrl },
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
       });
 
       if (error) {
         throw error;
       }
 
-      if (data.url) {
-        await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+      if (!data.url) {
+        console.log('[index] signInWithOAuth did not return a URL');
+        return;
+      }
+
+      console.log('[index] Opening auth session, flowId:', data.flowId, '| url:', data.url);
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+      console.log('[index] openAuthSessionAsync result type:', result.type);
+
+      if (result.type === 'success') {
+        if (result.url) {
+          console.log('[index] Handling return URL:', result.url);
+          await handleAuthUrl(result.url);
+        } else {
+          console.log('[index] Success result missing URL; relying on deep link event');
+        }
+      } else {
+        console.log('[index] Auth session cancelled or dismissed');
       }
     } catch (err) {
       console.log('Google sign-in failed', err);
@@ -52,16 +62,7 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={[Colors.primary, Colors.secondary]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <FloatingShape color="rgba(255,255,255,0.14)" style={styles.shapeOne} />
-      <FloatingShape color="rgba(139,69,19,0.28)" style={styles.shapeTwo} />
-      <FloatingShape color="rgba(255,255,255,0.10)" style={styles.shapeThree} />
+      <AppBackground />
 
       <ScreenWrapper background="transparent" style={styles.wrapper}>
         <View style={styles.hero}>
@@ -138,28 +139,6 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     paddingHorizontal: Spacing.xl,
-  },
-  shape: {
-    position: 'absolute',
-    borderRadius: Radius.pill,
-  },
-  shapeOne: {
-    width: 260,
-    height: 260,
-    top: -70,
-    right: -80,
-  },
-  shapeTwo: {
-    width: 180,
-    height: 180,
-    top: 200,
-    left: -70,
-  },
-  shapeThree: {
-    width: 120,
-    height: 120,
-    top: '55%',
-    right: -40,
   },
   hero: {
     flex: 1,

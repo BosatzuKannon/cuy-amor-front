@@ -34,7 +34,7 @@ export default function TabTwoScreen() {
 
   return (
     <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
+      style={[styles.scrollView, { backgroundColor: 'transparent' }]}
       contentInset={insets}
       contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
       <ThemedView style={styles.container}>
@@ -136,15 +136,17 @@ const styles = StyleSheet.create({
   container: {
     maxWidth: MaxContentWidth,
     flexGrow: 1,
+    backgroundColor: 'transparent',
   },
   titleContainer: {
     gap: Spacing.three,
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    backgroundColor: 'transparent',
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.six,
   },
   centerText: {
-    textAlign: 'center',
+    textAlign: 'left',
   },
   pressed: {
     opacity: 0.7,
@@ -160,6 +162,7 @@ const styles = StyleSheet.create({
   },
   sectionsWrapper: {
     gap: Spacing.five,
+    backgroundColor: 'transparent',
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
   },
