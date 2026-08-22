@@ -10,6 +10,8 @@ export const Colors = {
   border: '#E5E7EB',
   danger: '#DC2626',
   success: '#16A34A',
+  gold: '#FFD700',
+  online: '#A7F3D0',
 } as const;
 
 export type BrandColor = keyof typeof Colors;

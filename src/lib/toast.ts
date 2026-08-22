@@ -1,6 +1,6 @@
 import Toast from 'react-native-toast-message';
 
-type ToastKind = 'success' | 'error' | 'info';
+type ToastKind = 'success' | 'error' | 'info' | 'newMessage';
 
 function show(kind: ToastKind, title: string, message?: string) {
   Toast.show({
@@ -17,4 +17,6 @@ export const toast = {
   success: (title: string, message?: string) => show('success', title, message),
   error: (title: string, message?: string) => show('error', title, message),
   info: (title: string, message?: string) => show('info', title, message),
+  newMessage: (title: string, message?: string) =>
+    show('newMessage', title, message),
 };

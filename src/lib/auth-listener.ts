@@ -3,7 +3,9 @@ import * as Linking from 'expo-linking';
 
 import { api } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/store/useAuthStore';
+import { getUserProfile } from '@/services/profile-service';
+import { useChatStore } from '@/store/useChatStore';
+import { toUserProfile, useAuthStore } from '@/store/useAuthStore';
 
 let lastProcessedCode = '';
 
@@ -94,45 +96,19 @@ async function syncUserWithBackend(session: Session) {
 
 export async function loadUserProfile(session: Session) {
   try {
-    const response = await api.get<{
-      id: string;
-      email: string | null;
-      firstName: string | null;
-      lastName: string | null;
-      birthDate: string | null;
-      gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
-      interestedIn: 'WOMEN' | 'MEN' | 'BOTH' | null;
-      relationshipGoal: 'CASUAL' | 'FRIENDSHIP' | 'RELATIONSHIP' | 'CHAT' | null;
-      hobbies: string[];
-      bio: string | null;
-      city: string | null;
-      latitude: number | null;
-      longitude: number | null;
-      photos: { id: string }[];
-    }>('/users/me', {
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
-    });
+    const data = await getUserProfile(session.user.id, session);
+    const current = useAuthStore.getState().profile;
 
-    const data = response.data;
-    useAuthStore.getState().setProfile({
-      id: data.id,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      birthDate: data.birthDate,
-      gender: data.gender,
-      interestedIn: data.interestedIn,
-      relationshipGoal: data.relationshipGoal,
-      hobbies: Array.isArray(data.hobbies) ? data.hobbies : [],
-      bio: data.bio,
-      city: data.city,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      photoCount: Array.isArray(data.photos) ? data.photos.length : 0,
-    });
-    console.log('[auth-listener] profile loaded for user:', data.id);
+    useAuthStore.getState().setProfile(
+      toUserProfile(data, {
+        id: session.user.id,
+        email: session.user.email ?? null,
+        coinsBalance: current?.coinsBalance,
+      }),
+    );
+    console.log('[auth-listener] profile loaded for user:', session.user.id);
+    void useChatStore.getState().fetchMatches();
+    void useAuthStore.getState().fetchSupabaseToken();
   } catch (error) {
     console.log('[auth-listener] failed to load profile:', error);
     useAuthStore.getState().setProfile(null);

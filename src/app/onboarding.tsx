@@ -26,6 +26,7 @@ import { api } from '@/lib/api';
 import { uploadProfilePhoto } from '@/lib/photo-upload';
 import { toast } from '@/lib/toast';
 import {
+  DEFAULT_COINS_BALANCE,
   useAuthStore,
   type GenderCode,
   type InterestedInCode,
@@ -390,6 +391,10 @@ export default function OnboardingScreen() {
             ? metadata.full_name.split(' ')[0] || null
             : null,
         lastName: null,
+        fullName:
+          typeof metadata.full_name === 'string'
+            ? metadata.full_name.trim()
+            : null,
         birthDate: toIsoDate(birthDate),
         gender,
         interestedIn,
@@ -399,13 +404,17 @@ export default function OnboardingScreen() {
         city: null,
         latitude: location?.latitude ?? null,
         longitude: location?.longitude ?? null,
-        photoCount: photoUrl ? 1 : 0,
+        preferences: null,
+        photos: photoUrl
+          ? [{ id: '', url: photoUrl, order: 0, isProfile: true }]
+          : [],
+        coinsBalance: DEFAULT_COINS_BALANCE,
       };
 
       useAuthStore.getState().setProfile(profile);
       useAuthStore.getState().markProfileComplete();
 
-      router.replace('/(tabs)/explore');
+      router.replace('/(tabs)/home');
       toast.success(
         '¡Bienvenido a Cuy Amor!',
         'Tu perfil está listo. ¡A explorar!',

@@ -92,8 +92,8 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'flex-start',
     flexDirection: 'row',
     gap: Spacing.sm,

@@ -1,4 +1,4 @@
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 import type {
   ToastConfig,
@@ -59,10 +59,48 @@ function createToastRenderer(kind: ToastKind) {
   return ToastRenderer;
 }
 
+const NEW_MESSAGE_BLUE = '#007AFF';
+
+function NewMessageToastCard({
+  text1,
+  text2,
+}: {
+  text1?: string;
+  text2?: string;
+}) {
+  return (
+    <View style={styles.container}>
+      <View style={[styles.iconBadge, { backgroundColor: NEW_MESSAGE_BLUE }]}>
+        <Ionicons name="chatbubble-ellipses" size={16} color={Colors.white} />
+      </View>
+
+      <View style={styles.content}>
+        {text1 ? (
+          <AppText variant="label" color={Colors.white}>
+            {text1}
+          </AppText>
+        ) : null}
+        {text2 ? (
+          <AppText variant="caption" color="rgba(255,255,255,0.85)">
+            {text2}
+          </AppText>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function NewMessageToastRenderer({ text1, text2 }: ToastConfigParams<unknown>) {
+  return <NewMessageToastCard text1={text1} text2={text2} />;
+}
+
+NewMessageToastRenderer.displayName = 'Toast_newMessage';
+
 export const toastConfig: ToastConfig = {
   success: createToastRenderer('success'),
   error: createToastRenderer('error'),
   info: createToastRenderer('info'),
+  newMessage: NewMessageToastRenderer,
 };
 
 const styles = StyleSheet.create({

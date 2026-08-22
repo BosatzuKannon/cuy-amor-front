@@ -1,183 +1,538 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AntDesign } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useFocusEffect, router } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  Switch,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
-import { ExternalLink } from '@/components/external-link';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { ExploreCard } from '@/components/explore-card';
+import { PublicProfileModal } from '@/components/public-profile-modal';
+import { AppText } from '@/components/ui/app-text';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { toast } from '@/lib/toast';
+import {
+  getExploreFeed,
+  updateUserPreferences,
+  type ExploreProfile,
+} from '@/services/profile-service';
+import {
+  createInteraction,
+  type InteractionTypeCode,
+} from '@/services/interaction-service';
+import { useAuthStore } from '@/store/useAuthStore';
+import { Colors } from '@/theme/colors';
+import { Radius, Shadows, Spacing } from '@/theme/layout';
 
-export default function TabTwoScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-  const theme = useTheme();
+function extractApiErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const data = (error as {
+      response?: { data?: { message?: string | string[] } };
+    }).response?.data;
+    const message = data?.message;
+    if (typeof message === 'string' && message.length > 0) {
+      return message;
+    }
+    if (Array.isArray(message) && message.length > 0) {
+      return message[0];
+    }
+  }
+  return fallback;
+}
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
-    },
-  });
+function Skeleton({ style }: { style?: StyleProp<ViewStyle> }) {
+  const [opacity] = useState(() => new Animated.Value(0.4));
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.9,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [opacity]);
+
+  return <Animated.View style={[styles.skeleton, { opacity }, style]} />;
+}
+
+function ExploreSkeleton() {
+  return (
+    <View style={styles.skeletonCard}>
+      <Skeleton style={styles.skeletonImage} />
+      <View style={styles.skeletonOverlay}>
+        <Skeleton style={styles.skeletonName} />
+        <Skeleton style={styles.skeletonBio} />
+      </View>
+    </View>
+  );
+}
+
+export default function ExploreScreen() {
+  const session = useAuthStore((state) => state.session);
+  const profile = useAuthStore((state) => state.profile);
+
+  const [loading, setLoading] = useState(true);
+  const [profiles, setProfiles] = useState<ExploreProfile[]>([]);
+  const [togglingNinja, setTogglingNinja] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const coinsBalance = profile?.coinsBalance ?? 0;
+  const invisibleMode = profile?.preferences?.invisibleMode ?? false;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) {
+        return;
+      }
+      let active = true;
+      setLoading(true);
+      getExploreFeed(session)
+        .then((data) => {
+          if (active) {
+            setProfiles(data);
+          }
+        })
+        .catch((error) => {
+          console.error('[explore] fetch failed:', error);
+          if (active) {
+            toast.error(
+              'No se pudieron cargar los perfiles',
+              'Revisa tu conexión e inténtalo de nuevo.',
+            );
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setLoading(false);
+          }
+        });
+      return () => {
+        active = false;
+      };
+    }, [session]),
+  );
+
+  const activeProfile = profiles[0] ?? null;
+  const noProfiles = profiles.length === 0;
+
+  const processingRef = useRef(false);
+
+  async function performAction(type: InteractionTypeCode) {
+    if (processingRef.current || !session || !activeProfile) {
+      return;
+    }
+    processingRef.current = true;
+    try {
+      const result = await createInteraction(activeProfile.id, type, session);
+      if (result.isMatch) {
+        void Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        );
+        toast.success('¡Es un Match! 🎉', 'Ahora pueden chatear.');
+      }
+      if (result.newCoinBalance !== undefined) {
+        useAuthStore.getState().setCoinsBalance(result.newCoinBalance);
+      }
+      setProfiles((prev) => prev.slice(1));
+    } catch (error) {
+      console.error(`[explore] ${type} failed:`, error);
+      const message = extractApiErrorMessage(
+        error,
+        'No se pudo completar la acción.',
+      );
+      if (type === 'SUPER_LIKE') {
+        toast.error(
+          'Saldo insuficiente',
+          'Necesitas 15 Cuy Coins para enviar un Cuyazo.',
+        );
+      } else {
+        toast.error('No se pudo completar la acción', message);
+      }
+    } finally {
+      processingRef.current = false;
+    }
+  }
+
+  async function handleToggleNinja(value: boolean) {
+    if (!session || togglingNinja) {
+      return;
+    }
+    setTogglingNinja(true);
+    try {
+      const fresh = await updateUserPreferences(
+        session.user.id,
+        { invisibleMode: value },
+        session,
+      );
+      const current = useAuthStore.getState().profile;
+      if (current) {
+        useAuthStore.getState().setProfile({ ...current, preferences: fresh });
+      }
+      toast.success(
+        value ? 'Modo Cuy Ninja activado' : 'Modo Cuy Ninja desactivado',
+        value
+          ? 'Ya no apareces en el feed de otros usuarios.'
+          : 'Tu perfil vuelve a aparecer en el feed.',
+      );
+    } catch (error) {
+      console.error('[explore] toggle ninja failed:', error);
+      toast.error(
+        'No se pudo actualizar el modo ninja',
+        'Revisa tu conexión e inténtalo de nuevo.',
+      );
+    } finally {
+      setTogglingNinja(false);
+    }
+  }
 
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: 'transparent' }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
-          </ThemedText>
-
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <SymbolView
-                  tintColor={theme.text}
-                  name={{ ios: 'arrow.up.right.square', android: 'link', web: 'link' }}
-                  size={12}
-                />
-              </ThemedView>
+    <ScreenWrapper background="transparent" style={styles.wrapper}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Pressable
+              onPress={() => router.push('/search-preferences')}
+              hitSlop={10}
+              style={({ pressed }) => [
+                styles.settingsButton,
+                pressed && styles.settingsPressed,
+              ]}>
+              <AntDesign name="setting" size={20} color={Colors.white} />
             </Pressable>
-          </ExternalLink>
-        </ThemedView>
+            <View style={styles.brandRow}>
+              <View style={styles.brandDot} />
+              <AppText
+                variant="tag"
+                color="rgba(255,255,255,0.9)"
+                style={styles.brandText}>
+                CUY AMOR
+              </AppText>
+            </View>
+          </View>
+          <View style={styles.coinsPill}>
+            <AppText variant="tag" color={Colors.white} style={styles.coinsText}>
+              🪙 {coinsBalance}
+            </AppText>
+          </View>
+        </View>
 
-        <ThemedView style={styles.sectionsWrapper}>
-          <Collapsible title="File-based routing">
-            <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
-            </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/router/introduction">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+        {loading && profiles.length === 0 ? (
+          <ExploreSkeleton />
+        ) : activeProfile ? (
+          <ExploreCard
+            profile={activeProfile}
+            onPress={() => setIsProfileOpen(true)}
+          />
+        ) : (
+          <View style={[styles.card, styles.emptyCard]}>
+            <AntDesign name="heart" size={40} color={Colors.white} />
+            <AppText variant="h3" color={Colors.white} style={styles.emptyTitle}>
+              No hay cuyes por ahora
+            </AppText>
+            <AppText
+              variant="caption"
+              color="rgba(255,255,255,0.9)"
+              style={styles.emptyHint}>
+              Vuelve pronto para descubrir nuevos perfiles cerca de ti.
+            </AppText>
+          </View>
+        )}
 
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
-              </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
-              />
-            </ThemedView>
-          </Collapsible>
+        <View style={styles.actionsRow}>
+          <Pressable
+            onPress={() => void performAction('PASS')}
+            disabled={noProfiles}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.actionSide,
+              noProfiles && styles.actionDisabled,
+              { transform: [{ scale: pressed ? 0.9 : 1 }] },
+            ]}>
+            <AntDesign name="close" size={28} color="#9CA3AF" />
+          </Pressable>
 
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+          <Pressable
+            onPress={() => void performAction('SUPER_LIKE')}
+            disabled={noProfiles}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.actionCenter,
+              noProfiles && styles.actionDisabled,
+              { transform: [{ scale: pressed ? 0.9 : 1 }] },
+            ]}>
+            <AntDesign name="star" size={34} color={Colors.gold} />
+          </Pressable>
 
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+          <Pressable
+            onPress={() => void performAction('LIKE')}
+            disabled={noProfiles}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.actionSide,
+              noProfiles && styles.actionDisabled,
+              { transform: [{ scale: pressed ? 0.9 : 1 }] },
+            ]}>
+            <AntDesign name="heart" size={28} color="#DC2626" />
+          </Pressable>
+        </View>
 
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
-            </ThemedText>
-          </Collapsible>
-        </ThemedView>
-        {Platform.OS === 'web' && <WebBadge />}
-      </ThemedView>
-    </ScrollView>
+        <View style={styles.ninjaCard}>
+          <View style={styles.ninjaInfo}>
+            <AppText
+              variant="caption"
+              color={Colors.white}
+              style={[styles.ninjaTitle, styles.ninjaTitleBold]}>
+              Modo Cuy Ninja 🥷
+            </AppText>
+            <AppText
+              variant="caption"
+              color="rgba(255,255,255,0.8)"
+              style={styles.ninjaDescription}>
+              De esta manera nadie te va a encontrar y podrás explorar el campo
+              como un ninja.
+            </AppText>
+            <AppText
+              variant="caption"
+              color="rgba(255,255,255,0.8)"
+              style={styles.ninjaPrice}>
+              Costo: 50 Cuy Coins/sem
+            </AppText>
+          </View>
+          <Switch
+            value={invisibleMode}
+            onValueChange={(value) => void handleToggleNinja(value)}
+            disabled={togglingNinja}
+            trackColor={{ false: '#767577', true: '#34C759' }}
+            thumbColor="#ffffff"
+            ios_backgroundColor="#767577"
+            style={styles.ninjaSwitch}
+          />
+        </View>
+
+        <PublicProfileModal
+          visible={isProfileOpen && activeProfile !== null}
+          profile={activeProfile}
+          onClose={() => setIsProfileOpen(false)}
+          onPass={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            void performAction('PASS');
+          }}
+          onSuperLike={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            void performAction('SUPER_LIKE');
+          }}
+          onLike={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            void performAction('LIKE');
+          }}
+        />
+      </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  wrapper: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-    backgroundColor: 'transparent',
+    flex: 1,
+    width: '100%',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    alignItems: 'stretch',
   },
-  titleContainer: {
-    gap: Spacing.three,
-    alignItems: 'flex-start',
-    backgroundColor: 'transparent',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
   },
-  centerText: {
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  settingsButton: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  settingsPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.9 }],
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  brandDot: {
+    width: 10,
+    height: 10,
+    borderRadius: Radius.pill,
+    backgroundColor: '#00D166',
+  },
+  brandText: {
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  coinsPill: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+  },
+  coinsText: {
     textAlign: 'left',
   },
-  pressed: {
-    opacity: 0.7,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
-    justifyContent: 'center',
-    gap: Spacing.one,
-    alignItems: 'center',
-  },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    backgroundColor: 'transparent',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-  },
-  imageTutorial: {
+  card: {
+    flex: 1,
     width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
+    borderRadius: Radius.xl,
+    ...Shadows.card,
   },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
+  emptyCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  emptyTitle: {
+    textAlign: 'left',
+  },
+  emptyHint: {
+    textAlign: 'left',
+    maxWidth: 280,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xl,
+    paddingVertical: Spacing.lg,
+  },
+  actionButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  actionSide: {
+    width: 60,
+    height: 60,
+    borderRadius: Radius.pill,
+  },
+  actionCenter: {
+    width: 74,
+    height: 74,
+    borderRadius: Radius.pill,
+    borderWidth: 2,
+    borderColor: Colors.gold,
+  },
+  actionDisabled: {
+    opacity: 0.5,
+  },
+  ninjaCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: Radius.xl,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  ninjaInfo: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  ninjaTitle: {
+    textAlign: 'left',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  ninjaTitleBold: {
+    fontWeight: '600',
+  },
+  ninjaDescription: {
+    textAlign: 'left',
+    fontSize: 10,
+    lineHeight: 13,
+    marginTop: 2,
+  },
+  ninjaPrice: {
+    textAlign: 'left',
+    fontSize: 10,
+    lineHeight: 13,
+    marginTop: 2,
+  },
+  ninjaSwitch: {
+    transform: [{ scale: 0.8 }],
+  },
+  skeleton: {
+    backgroundColor: '#E6E8EB',
+    borderRadius: Radius.md,
+  },
+  skeletonCard: {
+    flex: 1,
+    width: '100%',
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    backgroundColor: '#E6E8EB',
+  },
+  skeletonImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 0,
+  },
+  skeletonOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  skeletonName: {
+    width: '55%',
+    height: 22,
+  },
+  skeletonBio: {
+    width: '85%',
+    height: 14,
   },
 });
