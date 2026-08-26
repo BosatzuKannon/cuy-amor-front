@@ -1,8 +1,12 @@
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppText } from '@/components/ui/app-text';
+import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
-import { Radius } from '@/theme/layout';
+import { Radius, Spacing } from '@/theme/layout';
 
 function FloatingShape({
   style,
@@ -15,6 +19,9 @@ function FloatingShape({
 }
 
 export function AppBackground() {
+  const insets = useSafeAreaInsets();
+  const isLeyenda = useAuthStore((s) => s.profile?.isLeyenda ?? false);
+
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <LinearGradient
@@ -27,6 +34,24 @@ export function AppBackground() {
       <FloatingShape color="rgba(255,255,255,0.14)" style={styles.shapeOne} />
       <FloatingShape color="rgba(139,69,19,0.28)" style={styles.shapeTwo} />
       <FloatingShape color="rgba(255,255,255,0.10)" style={styles.shapeThree} />
+
+      <View style={[styles.brandHeader, { paddingTop: insets.top + Spacing.sm }]}>
+        <Image
+          source={
+            isLeyenda
+              ? require('@/assets/images/iconvip.png')
+              : require('@/assets/images/icon1.png')
+          }
+          style={styles.brandLogo}
+          contentFit="contain"
+        />
+        <AppText
+          variant="tag"
+          color="rgba(255,255,255,0.9)"
+          style={styles.brandText}>
+          CUY AMOR
+        </AppText>
+      </View>
     </View>
   );
 }
@@ -53,5 +78,25 @@ const styles = StyleSheet.create({
     height: 120,
     top: '55%',
     right: -40,
+  },
+  brandHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 0,
+    paddingLeft: Spacing.lg,
+  },
+  brandLogo: {
+    width: 55,
+    height: 55,
+  },
+  brandText: {
+    textAlign: 'left',
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginLeft: -6,
   },
 });

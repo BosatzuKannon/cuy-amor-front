@@ -3,8 +3,9 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
@@ -12,9 +13,15 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
 
-const WALLET = {
-  cashBalance: '$50.000 COP',
-};
+const copFormatter = new Intl.NumberFormat('es-CO', {
+  style: 'currency',
+  currency: 'COP',
+  maximumFractionDigits: 0,
+});
+
+function formatCashBalance(cashBalanceCops: number): string {
+  return copFormatter.format(cashBalanceCops);
+}
 
 const AVATAR_GRADIENT_MALE = { colors: ['#40E0D0', '#007FFF'] as const };
 const AVATAR_GRADIENT_FEMALE = { colors: ['#e2725b', '#FFD700'] as const };
@@ -45,7 +52,9 @@ function ProfileRow({
       <AppText variant="bodyMedium" color={labelColor} style={styles.rowLabel}>
         {label}
       </AppText>
-      {chevron ? <AntDesign name="right" size={16} color={Colors.textMuted} /> : null}
+      {chevron ? (
+        <AntDesign name="right" size={16} color={Colors.textMuted} />
+      ) : null}
     </Pressable>
   );
 }
@@ -56,23 +65,39 @@ function Divider() {
 
 function BalanceTile({
   icon,
+  imageSource,
   label,
   value,
 }: {
   icon: React.ComponentProps<typeof AntDesign>['name'];
+  imageSource?: number;
   label: string;
   value: string;
 }) {
   return (
     <View style={styles.balanceTile}>
       <View style={styles.balanceIconWrap}>
-        <AntDesign name={icon} size={18} color={Colors.primary} />
+        {imageSource ? (
+          <Image
+            source={imageSource}
+            style={styles.balanceCoinIcon}
+            contentFit="contain"
+          />
+        ) : (
+          <AntDesign name={icon} size={18} color={Colors.primary} />
+        )}
       </View>
       <View style={styles.balanceBody}>
-        <AppText variant="caption" color={Colors.textMuted} style={styles.balanceLabel}>
+        <AppText
+          variant="caption"
+          color={Colors.textMuted}
+          style={styles.balanceLabel}>
           {label}
         </AppText>
-        <AppText variant="h3" color={Colors.text} style={styles.balanceValue}>
+        <AppText
+          variant="h3"
+          color={Colors.text}
+          style={styles.balanceValue}>
           {value}
         </AppText>
       </View>
@@ -81,20 +106,24 @@ function BalanceTile({
 }
 
 export default function ProfileScreen() {
-  const profile = useAuthStore((state) => state.profile);
+  const profile = useAuthStore((s) => s.profile);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showLeyendaModal, setShowLeyendaModal] = useState(false);
 
   const firstName = profile?.firstName ?? '';
   const lastName = profile?.lastName ?? '';
   const gender = profile?.gender ?? null;
   const initials = [firstName, lastName]
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase())
+    .map((p) => p.charAt(0).toUpperCase())
     .join('');
   const coinsBalance = profile?.coinsBalance ?? 0;
+  const cashBalance = formatCashBalance(profile?.cashBalanceInCents ?? 0);
+  const isLeyenda = profile?.isLeyenda ?? false;
+  const leyendaDaysLeft = profile?.leyendaDaysLeft ?? 0;
 
   const profilePhoto =
-    profile?.photos.find((photo) => photo.isProfile)?.url ??
+    profile?.photos.find((p) => p.isProfile)?.url ??
     profile?.photos[0]?.url ??
     null;
 
@@ -107,10 +136,6 @@ export default function ProfileScreen() {
 
   function handleLogout() {
     setShowLogoutModal(true);
-  }
-
-  function handleCancelLogout() {
-    setShowLogoutModal(false);
   }
 
   function handleConfirmLogout() {
@@ -131,7 +156,10 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}>
         <View style={styles.brandRow}>
           <View style={styles.brandDot} />
-          <AppText variant="tag" color="rgba(255,255,255,0.9)" style={styles.brandText}>
+          <AppText
+            variant="tag"
+            color="rgba(255,255,255,0.9)"
+            style={styles.brandText}>
             CUY AMOR
           </AppText>
         </View>
@@ -150,7 +178,10 @@ export default function ProfileScreen() {
               />
             ) : (
               <View style={styles.avatar}>
-                <AppText variant="h2" color={Colors.white} style={styles.avatarInitials}>
+                <AppText
+                  variant="h2"
+                  color={Colors.white}
+                  style={styles.avatarInitials}>
                   {initials || 'C'}
                 </AppText>
               </View>
@@ -159,45 +190,127 @@ export default function ProfileScreen() {
           <AppText variant="h2" color={Colors.white} style={styles.headerName}>
             {profile?.fullName ?? 'Mi Perfil'}
           </AppText>
-          <AppText
-            variant="caption"
-            color="rgba(255,255,255,0.9)"
-            style={styles.headerCoins}>
-            🪙 {coinsBalance} Cuy Coins
-          </AppText>
+          <View style={styles.coinsBadge}>
+            <Image
+              source={require('@/assets/images/coinn.png')}
+              style={styles.coinsBadgeIcon}
+              contentFit="contain"
+            />
+            <AppText
+              variant="caption"
+              color={Colors.white}
+              style={styles.coinsBadgeText}>
+              {coinsBalance} Cuy Coins
+            </AppText>
+          </View>
         </View>
 
         <View style={styles.card}>
-          <AppText variant="tag" color={Colors.textMuted} style={styles.cardTitle}>
+          <AppText
+            variant="tag"
+            color={Colors.textMuted}
+            style={styles.cardTitle}>
             Mi Cuenta
           </AppText>
-          <ProfileRow icon="edit" label="Editar perfil" onPress={() => router.push('/edit-profile')} />
+          <ProfileRow
+            icon="edit"
+            label="Editar perfil"
+            onPress={() => router.push('/edit-profile')}
+          />
           <Divider />
-          <ProfileRow icon="setting" label="Ajustes de búsqueda" onPress={() => router.push('/search-preferences')} />
+          <ProfileRow
+            icon="setting"
+            label="Ajustes de búsqueda"
+            onPress={() => router.push('/search-preferences')}
+          />
         </View>
 
         <View style={styles.card}>
-          <AppText variant="tag" color={Colors.textMuted} style={styles.cardTitle}>
+          <AppText
+            variant="tag"
+            color={Colors.textMuted}
+            style={styles.cardTitle}>
             Mi Billetera
           </AppText>
           <View style={styles.balanceStack}>
             <BalanceTile
               icon="wallet"
               label="Saldo disponible"
-              value={WALLET.cashBalance}
+              value={cashBalance}
             />
-            <BalanceTile icon="star" label="Cuy Coins" value={`${coinsBalance}`} />
           </View>
+          <ProfileRow
+            icon="team"
+            label="Cuyes referidos"
+            onPress={() => router.push('/referrals')}
+          />
           <Divider />
-          <ProfileRow icon="profile" label="Historial de transacciones" />
+
+          <Pressable
+            onPress={() => setShowLeyendaModal(true)}
+            style={({ pressed }) => [
+              styles.vipRow,
+              pressed && styles.vipRowPressed,
+            ]}>
+            <View style={styles.vipIconWrap}>
+              <Image
+                source={require('@/assets/images/iconvip.png')}
+                style={styles.vipIcon}
+                contentFit="contain"
+              />
+            </View>
+            <View style={styles.vipBody}>
+              <View style={styles.vipTitleRow}>
+                <AppText
+                  variant="bodyMedium"
+                  color={isLeyenda ? Colors.gold : Colors.text}
+                  style={styles.vipTitle}>
+                  Cuy Leyenda
+                </AppText>
+                {isLeyenda && (
+                  <View style={styles.vipBadge}>
+                    <AppText variant="tag" color={Colors.white}>
+                      VIP
+                    </AppText>
+                  </View>
+                )}
+              </View>
+              <AppText
+                variant="caption"
+                color={isLeyenda ? Colors.success : Colors.textMuted}>
+                {isLeyenda
+                  ? `Tienes ${leyendaDaysLeft} d\u00EDas restantes como leyenda`
+                  : 'Convi\u00E9rtete en Leyenda'}
+              </AppText>
+            </View>
+            <AntDesign name="right" size={16} color={Colors.textMuted} />
+          </Pressable>
+
           <Divider />
-          <ProfileRow icon="export" label="Solicitar retiro" />
+          <ProfileRow
+            icon="profile"
+            label="Historial de transacciones"
+            onPress={() => router.push('/wallet/wallet-history')}
+          />
           <Divider />
-          <ProfileRow icon="import" label="Depositar dinero" />
+          <ProfileRow
+            icon="export"
+            label="Solicitar retiro"
+            onPress={() => router.push('/wallet/payout')}
+          />
+          <Divider />
+          <ProfileRow
+            icon="shopping-cart"
+            label="Comprar Cuy Coins"
+            onPress={() => router.push('/wallet/buy-coins')}
+          />
         </View>
 
         <View style={styles.card}>
-          <AppText variant="tag" color={Colors.textMuted} style={styles.cardTitle}>
+          <AppText
+            variant="tag"
+            color={Colors.textMuted}
+            style={styles.cardTitle}>
             Legal
           </AppText>
           <ProfileRow
@@ -214,7 +327,10 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
-          <AppText variant="tag" color={Colors.textMuted} style={styles.cardTitle}>
+          <AppText
+            variant="tag"
+            color={Colors.textMuted}
+            style={styles.cardTitle}>
             Acciones
           </AppText>
           <ProfileRow
@@ -231,13 +347,16 @@ export default function ProfileScreen() {
         transparent
         visible={showLogoutModal}
         animationType="fade"
-        onRequestClose={handleCancelLogout}>
+        onRequestClose={() => setShowLogoutModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <AppText variant="h3" color={Colors.text} style={styles.modalTitle}>
               Cerrar sesión
             </AppText>
-            <AppText variant="body" color={Colors.textMuted} style={styles.modalBody}>
+            <AppText
+              variant="body"
+              color={Colors.textMuted}
+              style={styles.modalBody}>
               ¿Estás seguro que deseas salir?
             </AppText>
             <View style={styles.modalActions}>
@@ -245,7 +364,7 @@ export default function ProfileScreen() {
                 label="Cancelar"
                 variant="outlined"
                 style={styles.modalButton}
-                onPress={handleCancelLogout}
+                onPress={() => setShowLogoutModal(false)}
               />
               <AppButton
                 label="Salir"
@@ -258,6 +377,11 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      <CuyLeyendaModal
+        visible={showLeyendaModal}
+        onClose={() => setShowLeyendaModal(false)}
+      />
     </ScreenWrapper>
   );
 }
@@ -321,8 +445,25 @@ const styles = StyleSheet.create({
   headerName: {
     textAlign: 'center',
   },
-  headerCoins: {
-    textAlign: 'center',
+  coinsBadge: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: Radius.pill,
+    paddingLeft: Spacing.xs,
+    paddingRight: Spacing.md,
+    paddingVertical: Spacing.xs,
+    ...Shadows.button,
+  },
+  coinsBadgeIcon: {
+    width: 28,
+    height: 28,
+  },
+  coinsBadgeText: {
+    textAlign: 'left',
   },
   card: {
     width: '100%',
@@ -380,6 +521,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: Radius.lg,
     padding: Spacing.md,
+    ...Shadows.button,
   },
   balanceIconWrap: {
     width: 36,
@@ -388,6 +530,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(220,20,60,0.12)',
+  },
+  balanceCoinIcon: {
+    width: 24,
+    height: 24,
   },
   balanceBody: {
     flex: 1,
@@ -399,6 +545,46 @@ const styles = StyleSheet.create({
   },
   balanceValue: {
     textAlign: 'left',
+  },
+  vipRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  vipRowPressed: {
+    opacity: 0.6,
+  },
+  vipIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,215,0,0.12)',
+  },
+  vipIcon: {
+    width: 22,
+    height: 22,
+  },
+  vipBody: {
+    flex: 1,
+    gap: 2,
+  },
+  vipTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  vipTitle: {
+    textAlign: 'left',
+  },
+  vipBadge: {
+    backgroundColor: Colors.gold,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 1,
   },
   modalOverlay: {
     flex: 1,

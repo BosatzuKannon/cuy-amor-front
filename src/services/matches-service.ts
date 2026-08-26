@@ -41,15 +41,26 @@ export async function updateLastSeen(session: Session): Promise<void> {
   await api.patch('/users/last-seen', {}, { headers: authHeaders(session) });
 }
 
+export type VirtualGiftSummary = {
+  id: string;
+  name: string;
+  iconUrl: string;
+  coinCost: number;
+  cashValueCops: number;
+};
+
 export type ChatMessage = {
   id: string;
   content: string;
   isRead: boolean;
   isPriority: boolean;
+  isSystemMessage?: boolean;
   createdAt: string;
   senderId: string;
   recipientId: string | null;
   replyToId?: string | null;
+  giftId?: string | null;
+  gift?: VirtualGiftSummary | null;
 };
 
 export async function getMessages(
@@ -84,6 +95,43 @@ export async function sendMessage(
   const { data } = await api.post<ChatMessage>(
     `/matches/${matchId}/messages`,
     { content, replyToId },
+    { headers: authHeaders(session) },
+  );
+
+  return data;
+}
+
+export async function sendZumbido(
+  session: Session,
+  matchId: string,
+): Promise<ChatMessage> {
+  const { data } = await api.post<ChatMessage>(
+    `/matches/${matchId}/zumbido`,
+    {},
+    { headers: authHeaders(session) },
+  );
+
+  return data;
+}
+
+export async function getGifts(
+  session: Session,
+): Promise<VirtualGiftSummary[]> {
+  const { data } = await api.get<VirtualGiftSummary[]>('/gifts', {
+    headers: authHeaders(session),
+  });
+
+  return data;
+}
+
+export async function sendGift(
+  session: Session,
+  matchId: string,
+  giftId: string,
+): Promise<ChatMessage> {
+  const { data } = await api.post<ChatMessage>(
+    `/matches/${matchId}/gifts/${giftId}`,
+    {},
     { headers: authHeaders(session) },
   );
 

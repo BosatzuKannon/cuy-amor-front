@@ -1,4 +1,5 @@
 import { AntDesign } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -16,10 +17,10 @@ import { ExploreCard } from '@/components/explore-card';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import {
   getExploreFeed,
-  updateUserPreferences,
   type ExploreProfile,
 } from '@/services/profile-service';
 import {
@@ -29,6 +30,15 @@ import {
 import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
+
+const NINJA_COST_IN_COINS = 50;
+const DEFAULT_NINJA_DAYS_LEFT = 7;
+
+type NinjaActivationResponse = {
+  isNinja: boolean;
+  ninjaExpiresAt: string | null;
+  ninjaDaysLeft?: number;
+};
 
 function extractApiErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'response' in error) {
@@ -89,11 +99,15 @@ export default function ExploreScreen() {
 
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<ExploreProfile[]>([]);
-  const [togglingNinja, setTogglingNinja] = useState(false);
+  const [isNinjaLoading, setIsNinjaLoading] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [showNinjaTooltip, setShowNinjaTooltip] = useState(false);
 
   const coinsBalance = profile?.coinsBalance ?? 0;
-  const invisibleMode = profile?.preferences?.invisibleMode ?? false;
+  const isNinjaActive = profile?.isNinja ?? false;
+  const ninjaDaysLeft = profile?.ninjaDaysLeft ?? 0;
+  const isLeyenda = profile?.isLeyenda ?? false;
+  const dailyCuyazosLeft = profile?.dailyCuyazosLeft ?? 0;
 
   useFocusEffect(
     useCallback(() => {
@@ -132,6 +146,17 @@ export default function ExploreScreen() {
   const noProfiles = profiles.length === 0;
 
   const processingRef = useRef(false);
+  const ninjaTooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    return () => {
+      if (ninjaTooltipTimeoutRef.current) {
+        clearTimeout(ninjaTooltipTimeoutRef.current);
+      }
+    };
+  }, []);
 
   async function performAction(type: InteractionTypeCode) {
     if (processingRef.current || !session || !activeProfile) {
@@ -148,6 +173,11 @@ export default function ExploreScreen() {
       }
       if (result.newCoinBalance !== undefined) {
         useAuthStore.getState().setCoinsBalance(result.newCoinBalance);
+      }
+      if (type === 'SUPER_LIKE' && isLeyenda && dailyCuyazosLeft > 0) {
+        useAuthStore.getState().updateProfile({
+          dailyCuyazosLeft: dailyCuyazosLeft - 1,
+        });
       }
       setProfiles((prev) => prev.slice(1));
     } catch (error) {
@@ -170,42 +200,95 @@ export default function ExploreScreen() {
   }
 
   async function handleToggleNinja(value: boolean) {
-    if (!session || togglingNinja) {
+    if (!session || isNinjaLoading) {
       return;
     }
-    setTogglingNinja(true);
+    setIsNinjaLoading(true);
     try {
-      const fresh = await updateUserPreferences(
-        session.user.id,
-        { invisibleMode: value },
-        session,
-      );
-      const current = useAuthStore.getState().profile;
-      if (current) {
-        useAuthStore.getState().setProfile({ ...current, preferences: fresh });
+      if (value) {
+        const { data } = await api.post<NinjaActivationResponse>(
+          '/users/ninja/activate',
+          {},
+          { headers: { Authorization: `Bearer ${session.access_token}` } },
+        );
+        const currentBalance =
+          useAuthStore.getState().profile?.coinsBalance ?? 0;
+        if (!isLeyenda) {
+          useAuthStore.getState().updateProfile({
+            coinsBalance: Math.max(0, currentBalance - NINJA_COST_IN_COINS),
+            isNinja: true,
+            ninjaDaysLeft:
+              data.ninjaDaysLeft ?? DEFAULT_NINJA_DAYS_LEFT,
+          });
+          toast.success(
+            'Modo Cuy Ninja activado',
+            `-50 Cuy Coins · ${data.ninjaDaysLeft ?? DEFAULT_NINJA_DAYS_LEFT} días de sigilo`,
+          );
+        } else {
+          useAuthStore.getState().updateProfile({
+            isNinja: true,
+            ninjaDaysLeft:
+              data.ninjaDaysLeft ?? DEFAULT_NINJA_DAYS_LEFT,
+          });
+          toast.success(
+            'Modo Cuy Ninja activado',
+            `${data.ninjaDaysLeft ?? DEFAULT_NINJA_DAYS_LEFT} días de sigilo · Gratis para Cuy Leyenda`,
+          );
+        }
+      } else {
+        await api.post(
+          '/users/ninja/deactivate',
+          {},
+          { headers: { Authorization: `Bearer ${session.access_token}` } },
+        );
+        useAuthStore.getState().updateProfile({
+          isNinja: false,
+          ninjaDaysLeft: 0,
+        });
+        toast.success('Modo Cuy Ninja desactivado', 'Vuelves a ser visible.');
       }
-      toast.success(
-        value ? 'Modo Cuy Ninja activado' : 'Modo Cuy Ninja desactivado',
-        value
-          ? 'Ya no apareces en el feed de otros usuarios.'
-          : 'Tu perfil vuelve a aparecer en el feed.',
-      );
     } catch (error) {
       console.error('[explore] toggle ninja failed:', error);
       toast.error(
-        'No se pudo actualizar el modo ninja',
+        extractApiErrorMessage(error, 'No se pudo actualizar el modo ninja'),
         'Revisa tu conexión e inténtalo de nuevo.',
       );
     } finally {
-      setTogglingNinja(false);
+      setIsNinjaLoading(false);
     }
+  }
+
+  function showNinjaInfo() {
+    setShowNinjaTooltip(true);
+    if (ninjaTooltipTimeoutRef.current) {
+      clearTimeout(ninjaTooltipTimeoutRef.current);
+    }
+    ninjaTooltipTimeoutRef.current = setTimeout(
+      () => setShowNinjaTooltip(false),
+      3000,
+    );
   }
 
   return (
     <ScreenWrapper background="transparent" style={styles.wrapper}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <View style={styles.headerRight}>
+            <View style={styles.coinsPill}>
+              <View style={styles.coinsIconWrap}>
+                <Image
+                  source={require('@/assets/images/coinn.png')}
+                  style={styles.coinsIcon}
+                  contentFit="contain"
+                />
+              </View>
+              <AppText
+                variant="tag"
+                color={Colors.white}
+                style={styles.coinsText}>
+                {coinsBalance}
+              </AppText>
+            </View>
             <Pressable
               onPress={() => router.push('/search-preferences')}
               hitSlop={10}
@@ -215,20 +298,6 @@ export default function ExploreScreen() {
               ]}>
               <AntDesign name="setting" size={20} color={Colors.white} />
             </Pressable>
-            <View style={styles.brandRow}>
-              <View style={styles.brandDot} />
-              <AppText
-                variant="tag"
-                color="rgba(255,255,255,0.9)"
-                style={styles.brandText}>
-                CUY AMOR
-              </AppText>
-            </View>
-          </View>
-          <View style={styles.coinsPill}>
-            <AppText variant="tag" color={Colors.white} style={styles.coinsText}>
-              🪙 {coinsBalance}
-            </AppText>
           </View>
         </View>
 
@@ -240,7 +309,7 @@ export default function ExploreScreen() {
             onPress={() => setIsProfileOpen(true)}
           />
         ) : (
-          <View style={[styles.card, styles.emptyCard]}>
+          <View style={[styles.card, styles.emptyCard, styles.cardEmpty]}>
             <AntDesign name="heart" size={40} color={Colors.white} />
             <AppText variant="h3" color={Colors.white} style={styles.emptyTitle}>
               No hay cuyes por ahora
@@ -262,6 +331,7 @@ export default function ExploreScreen() {
             style={({ pressed }) => [
               styles.actionButton,
               styles.actionSide,
+              { backgroundColor: '#FFFFFF' },
               noProfiles && styles.actionDisabled,
               { transform: [{ scale: pressed ? 0.9 : 1 }] },
             ]}>
@@ -273,12 +343,22 @@ export default function ExploreScreen() {
             disabled={noProfiles}
             hitSlop={8}
             style={({ pressed }) => [
-              styles.actionButton,
-              styles.actionCenter,
+              styles.actionCuyazo,
               noProfiles && styles.actionDisabled,
               { transform: [{ scale: pressed ? 0.9 : 1 }] },
             ]}>
-            <AntDesign name="star" size={34} color={Colors.gold} />
+            <Image
+              source={require('@/assets/images/cuyazoo.png')}
+              style={styles.actionCuyazoIcon}
+              contentFit="contain"
+            />
+            {isLeyenda && dailyCuyazosLeft > 0 && (
+              <View style={styles.cuyazoBadge}>
+                <AppText variant="tag" color={Colors.white} style={styles.cuyazoBadgeText}>
+                  {dailyCuyazosLeft}
+                </AppText>
+              </View>
+            )}
           </Pressable>
 
           <Pressable
@@ -288,6 +368,7 @@ export default function ExploreScreen() {
             style={({ pressed }) => [
               styles.actionButton,
               styles.actionSide,
+              { backgroundColor: '#FFFFFF' },
               noProfiles && styles.actionDisabled,
               { transform: [{ scale: pressed ? 0.9 : 1 }] },
             ]}>
@@ -295,37 +376,75 @@ export default function ExploreScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.ninjaCard}>
-          <View style={styles.ninjaInfo}>
-            <AppText
-              variant="caption"
-              color={Colors.white}
-              style={[styles.ninjaTitle, styles.ninjaTitleBold]}>
-              Modo Cuy Ninja 🥷
-            </AppText>
-            <AppText
-              variant="caption"
-              color="rgba(255,255,255,0.8)"
-              style={styles.ninjaDescription}>
-              De esta manera nadie te va a encontrar y podrás explorar el campo
-              como un ninja.
-            </AppText>
-            <AppText
-              variant="caption"
-              color="rgba(255,255,255,0.8)"
-              style={styles.ninjaPrice}>
-              Costo: 50 Cuy Coins/sem
-            </AppText>
+        <View style={styles.ninjaWrap}>
+          <View style={styles.ninjaCard}>
+            <View style={styles.ninjaIconWrap}>
+              <Image
+                source={require('@/assets/images/ninjaa.png')}
+                style={styles.ninjaIcon}
+                contentFit="contain"
+              />
+            </View>
+            <View style={styles.ninjaInfo}>
+              <AppText
+                variant="caption"
+                color={Colors.white}
+                style={[styles.ninjaTitle, styles.ninjaTitleBold]}>
+                Modo Cuy Ninja
+              </AppText>
+            </View>
+            <View style={styles.ninjaSwitchArea}>
+              {isNinjaActive ? (
+                <AppText
+                  variant="tag"
+                  color={Colors.textMuted}
+                  style={styles.ninjaDaysLabel}>
+                  {ninjaDaysLeft} días
+                </AppText>
+              ) : null}
+              <Switch
+                value={isNinjaActive}
+                onValueChange={(value) => void handleToggleNinja(value)}
+                disabled={isNinjaLoading || (isNinjaActive && !isLeyenda)}
+                trackColor={{ false: '#767577', true: '#34C759' }}
+                thumbColor="#ffffff"
+                ios_backgroundColor="#767577"
+                style={styles.ninjaSwitch}
+              />
+            </View>
+            <Pressable
+              onPress={showNinjaInfo}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Información del Modo Cuy Ninja"
+              style={({ pressed }) => [
+                styles.ninjaInfoButton,
+                pressed && styles.ninjaInfoButtonPressed,
+              ]}>
+              <AntDesign
+                name="info-circle"
+                size={18}
+                color="rgba(255,255,255,0.9)"
+              />
+            </Pressable>
           </View>
-          <Switch
-            value={invisibleMode}
-            onValueChange={(value) => void handleToggleNinja(value)}
-            disabled={togglingNinja}
-            trackColor={{ false: '#767577', true: '#34C759' }}
-            thumbColor="#ffffff"
-            ios_backgroundColor="#767577"
-            style={styles.ninjaSwitch}
-          />
+          {showNinjaTooltip ? (
+            <View style={styles.ninjaTooltip} pointerEvents="none">
+              <AppText
+                variant="caption"
+                color={Colors.white}
+                style={styles.ninjaTooltipText}>
+                De esta manera nadie te va a encontrar y podrás explorar el
+                campo como un ninja.
+              </AppText>
+              <AppText
+                variant="caption"
+                color={Colors.white}
+                style={styles.ninjaTooltipText}>
+                {isLeyenda ? 'Gratis para Cuy Leyenda' : 'Costo: 50 Cuy Coins/sem'}
+              </AppText>
+            </View>
+          ) : null}
         </View>
 
         <PublicProfileModal
@@ -367,13 +486,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: Spacing.md,
   },
-  headerLeft: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   settingsButton: {
     width: 36,
@@ -381,33 +500,32 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'transparent',
   },
   settingsPressed: {
     opacity: 0.7,
     transform: [{ scale: 0.9 }],
   },
-  brandRow: {
+  coinsPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    ...Shadows.button,
   },
-  brandDot: {
-    width: 10,
-    height: 10,
+  coinsIconWrap: {
+    width: 26,
+    height: 26,
     borderRadius: Radius.pill,
-    backgroundColor: '#00D166',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  brandText: {
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  coinsPill: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
+  coinsIcon: {
+    width: 24,
+    height: 24,
   },
   coinsText: {
     textAlign: 'left',
@@ -416,20 +534,23 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     borderRadius: Radius.xl,
-    ...Shadows.card,
+  },
+  cardEmpty: {
+    backgroundColor: 'transparent',
+    elevation: 0,
   },
   emptyCard: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.md,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'transparent',
   },
   emptyTitle: {
-    textAlign: 'left',
+    textAlign: 'center',
   },
   emptyHint: {
-    textAlign: 'left',
+    textAlign: 'center',
     maxWidth: 280,
   },
   actionsRow: {
@@ -454,26 +575,68 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: Radius.pill,
   },
-  actionCenter: {
-    width: 74,
-    height: 74,
+  actionCuyazo: {
+    width: 80,
+    height: 80,
     borderRadius: Radius.pill,
-    borderWidth: 2,
-    borderColor: Colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   actionDisabled: {
     opacity: 0.5,
+  },
+  actionCuyazoIcon: {
+    width: 70,
+    height: 70,
+  },
+  cuyazoBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.gold,
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.2)',
+  },
+  cuyazoBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  ninjaWrap: {
+    width: '100%',
+    position: 'relative',
+    zIndex: 10,
   },
   ninjaCard: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    gap: Spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: Radius.xl,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 12,
+  },
+  ninjaIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  ninjaIcon: {
+    width: 26,
+    height: 26,
   },
   ninjaInfo: {
     flex: 1,
@@ -487,20 +650,47 @@ const styles = StyleSheet.create({
   ninjaTitleBold: {
     fontWeight: '600',
   },
-  ninjaDescription: {
-    textAlign: 'left',
-    fontSize: 10,
-    lineHeight: 13,
-    marginTop: 2,
+  ninjaInfoButton: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  ninjaPrice: {
-    textAlign: 'left',
-    fontSize: 10,
-    lineHeight: 13,
-    marginTop: 2,
+  ninjaInfoButtonPressed: {
+    opacity: 0.6,
+    transform: [{ scale: 0.9 }],
   },
   ninjaSwitch: {
-    transform: [{ scale: 0.8 }],
+    transform: [{ scale: 0.85 }],
+  },
+  ninjaSwitchArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  ninjaDaysLabel: {
+    fontSize: 11,
+    textAlign: 'right',
+  },
+  ninjaTooltip: {
+    position: 'absolute',
+    bottom: '100%',
+    marginBottom: Spacing.sm,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    padding: 12,
+    gap: Spacing.xs,
+    alignItems: 'flex-start',
+    ...Shadows.button,
+  },
+  ninjaTooltipText: {
+    textAlign: 'left',
   },
   skeleton: {
     backgroundColor: '#E6E8EB',

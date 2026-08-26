@@ -39,13 +39,28 @@ export type UserProfile = {
   preferences: ProfilePreferences | null;
   photos: ProfilePhoto[];
   coinsBalance: number;
+  cashBalanceInCents: number;
+  referralCode: string | null;
+  referralEarnings: number;
+  isNinja: boolean;
+  isLeyenda: boolean;
+  leyendaExpiresAt: string | null;
+  leyendaDaysLeft: number;
+  dailyZumbidosLeft: number;
+  dailyCuyazosLeft: number;
+  ninjaDaysLeft: number;
 };
 
 export const DEFAULT_COINS_BALANCE = 150;
 
 export function toUserProfile(
   data: UserProfileData,
-  options: { id: string; email: string | null; coinsBalance?: number },
+  options: {
+    id: string;
+    email: string | null;
+    coinsBalance?: number;
+    cashBalanceInCents?: number;
+  },
 ): UserProfile {
   return {
     id: options.id,
@@ -72,6 +87,16 @@ export function toUserProfile(
       isProfile: photo.isProfile,
     })),
     coinsBalance: options.coinsBalance ?? DEFAULT_COINS_BALANCE,
+    cashBalanceInCents: options.cashBalanceInCents ?? 0,
+    referralCode: data.referralCode ?? null,
+    referralEarnings: data.referralEarnings ?? 0,
+    isNinja: data.isNinja ?? false,
+    isLeyenda: data.isLeyenda ?? false,
+    leyendaExpiresAt: data.leyendaExpiresAt ?? null,
+    leyendaDaysLeft: data.leyendaDaysLeft ?? 0,
+    dailyZumbidosLeft: data.dailyZumbidosLeft ?? 0,
+    dailyCuyazosLeft: data.dailyCuyazosLeft ?? 0,
+    ninjaDaysLeft: data.ninjaDaysLeft ?? 0,
   };
 }
 
@@ -87,9 +112,11 @@ type AuthState = {
   setSession: (session: Session | null) => void;
   setLoading: (isLoading: boolean) => void;
   setProfile: (profile: UserProfile | null) => void;
+  updateProfile: (partial: Partial<UserProfile>) => void;
   fetchSupabaseToken: () => Promise<void>;
   deductCoins: (amount: number) => boolean;
   setCoinsBalance: (coinsBalance: number) => void;
+  setCashBalance: (cashBalanceInCents: number) => void;
   markProfileComplete: () => void;
   logout: () => Promise<void>;
 };
@@ -114,21 +141,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     console.log('[useAuthStore] setLoading:', isLoading);
     set({ isLoading });
   },
-    setProfile: (profile) => {
-      const profileComplete =
-        !!profile &&
-        !!profile.birthDate &&
-        !!profile.gender &&
-        (profile.photos?.length ?? 0) > 0;
-      console.log(
-        '[useAuthStore] setProfile:',
-        profileComplete ? 'complete' : 'incomplete',
-        profile
-          ? `${profile.firstName ?? profile.id} (${profile.photos?.length ?? 0} photo(s))`
-          : 'null',
-      );
-      set({ profile, profileComplete, profileReady: true });
-    },
+  setProfile: (profile) => {
+    const profileComplete =
+      !!profile &&
+      !!profile.birthDate &&
+      !!profile.gender &&
+      (profile.photos?.length ?? 0) > 0;
+    console.log(
+      '[useAuthStore] setProfile:',
+      profileComplete ? 'complete' : 'incomplete',
+      profile
+        ? `${profile.firstName ?? profile.id} (${profile.photos?.length ?? 0} photo(s))`
+        : 'null',
+    );
+    set({ profile, profileComplete, profileReady: true });
+  },
+  updateProfile: (partial) => {
+    const current = get().profile;
+    if (!current) {
+      return;
+    }
+    const profile = { ...current, ...partial };
+    const profileComplete =
+      !!profile.birthDate && !!profile.gender && profile.photos.length > 0;
+    set({ profile, profileComplete });
+  },
     deductCoins: (amount) => {
       const { profile } = get();
       if (!profile || profile.coinsBalance < amount) {
@@ -143,12 +180,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return true;
     },
     setCoinsBalance: (coinsBalance) => {
-      set((state) => {
-        if (!state.profile) {
-          return {};
-        }
-        return { profile: { ...state.profile, coinsBalance } };
-      });
+      if (typeof coinsBalance !== 'number' || !Number.isFinite(coinsBalance)) {
+        console.warn(
+          '[useAuthStore] setCoinsBalance ignored invalid value:',
+          coinsBalance,
+        );
+        return;
+      }
+      set((state) => ({
+        profile: state.profile
+          ? { ...state.profile, coinsBalance }
+          : null,
+      }));
+    },
+    setCashBalance: (cashBalanceInCents) => {
+      if (
+        typeof cashBalanceInCents !== 'number' ||
+        !Number.isFinite(cashBalanceInCents)
+      ) {
+        console.warn(
+          '[useAuthStore] setCashBalance ignored invalid value:',
+          cashBalanceInCents,
+        );
+        return;
+      }
+      set((state) => ({
+        profile: state.profile
+          ? { ...state.profile, cashBalanceInCents }
+          : null,
+      }));
     },
     fetchSupabaseToken: async () => {
       const { session } = get();

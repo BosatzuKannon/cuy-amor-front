@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -34,7 +35,7 @@ import {
   type UserProfile,
 } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
-import { Radius, Spacing } from '@/theme/layout';
+import { Radius, Shadows, Spacing } from '@/theme/layout';
 
 const GENDER_OPTIONS: { label: string; value: GenderCode }[] = [
   { label: 'Mujer', value: 'FEMALE' },
@@ -152,6 +153,7 @@ export default function OnboardingScreen() {
   } | null>(null);
   const [promptingLocation, setPromptingLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showWelcomeGift, setShowWelcomeGift] = useState(false);
 
   const locationRequested = useRef(false);
 
@@ -409,16 +411,22 @@ export default function OnboardingScreen() {
           ? [{ id: '', url: photoUrl, order: 0, isProfile: true }]
           : [],
         coinsBalance: DEFAULT_COINS_BALANCE,
+        cashBalanceInCents: 0,
+        referralCode: null,
+        referralEarnings: 0,
+        isNinja: false,
+        isLeyenda: false,
+        leyendaExpiresAt: null,
+        leyendaDaysLeft: 0,
+        dailyZumbidosLeft: 0,
+        dailyCuyazosLeft: 0,
+        ninjaDaysLeft: 0,
       };
 
       useAuthStore.getState().setProfile(profile);
       useAuthStore.getState().markProfileComplete();
 
-      router.replace('/(tabs)/home');
-      toast.success(
-        '¡Bienvenido a Cuy Amor!',
-        'Tu perfil está listo. ¡A explorar!',
-      );
+      setShowWelcomeGift(true);
     } catch (err) {
       console.error('[onboarding] PATCH /users/profile failed:', err);
       const axiosError = err as Partial<AxiosError<unknown>>;
@@ -804,6 +812,57 @@ export default function OnboardingScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        transparent
+        visible={showWelcomeGift}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowWelcomeGift(false);
+          router.replace('/(tabs)/home');
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalCoinWrap}>
+              <Image
+                source={require('@/assets/images/coinn.png')}
+                style={styles.modalCoinIcon}
+                contentFit="contain"
+              />
+            </View>
+            <AppText
+              variant="h3"
+              color={Colors.text}
+              style={styles.modalTitle}>
+              ¡Regalo de bienvenida!
+            </AppText>
+            <AppText
+              variant="body"
+              color={Colors.textMuted}
+              style={styles.modalBody}>
+              Has recibido 100 Cuy Coins para comenzar tu aventura en Cuy Amor.
+            </AppText>
+            <AppText
+              variant="caption"
+              color={Colors.textMuted}
+              style={styles.modalHint}>
+              Úsalas para enviar Cuyazos especiales o activar el modo
+              incógnito Cuy Ninja.
+            </AppText>
+            <AppButton
+              label="¡Genial!"
+              variant="solid"
+              pill
+              fullWidth
+              style={styles.modalButton}
+              onPress={() => {
+                setShowWelcomeGift(false);
+                router.replace('/(tabs)/home');
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScreenWrapper>
   );
 }
@@ -1026,5 +1085,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: Spacing.md,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: Colors.white,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    ...Shadows.card,
+  },
+  modalCoinWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,215,0,0.15)',
+    marginBottom: Spacing.lg,
+  },
+  modalCoinIcon: {
+    width: 52,
+    height: 52,
+  },
+  modalTitle: {
+    textAlign: 'center',
+  },
+  modalBody: {
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+  },
+  modalHint: {
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xl,
+    lineHeight: 20,
+  },
+  modalButton: {
+    width: '100%',
   },
 });

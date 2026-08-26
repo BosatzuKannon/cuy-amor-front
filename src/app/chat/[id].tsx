@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { isAxiosError } from 'axios';
 import {
   ActivityIndicator,
   FlatList,
@@ -29,6 +30,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
+import { GiftSelectorModal } from '@/components/gift-selector-modal';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
@@ -37,17 +39,38 @@ import {
   getMessages,
   markMatchRead,
   sendMessage,
+  sendGift,
+  sendZumbido,
   type ChatMessage,
   type GenderCode,
+  type VirtualGiftSummary,
 } from '@/services/matches-service';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useChatStore } from '@/store/useChatStore';
+import { selectGiftById, useGiftStore } from '@/store/useGiftStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
 
 const MESSAGE_AVATAR_SIZE = 28;
 const FAB_VISIBLE_OFFSET = 200;
 const READ_TICK_COLOR = '#53BDEB';
+const ZUMBIDO_COOLDOWN_MS = 5000;
+const ZUMBIDO_COST_IN_COINS = 5;
+
+function extractApiErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    const data: unknown = error.response?.data;
+    if (
+      data &&
+      typeof data === 'object' &&
+      'message' in data &&
+      typeof (data as { message?: unknown }).message === 'string'
+    ) {
+      return (data as { message: string }).message;
+    }
+  }
+  return fallback;
+}
 
 const AVATAR_GRADIENTS: Record<string, { colors: readonly [string, string] }> = {
   FEMALE: { colors: ['#f9a8d4', '#a855f7'] },
@@ -246,6 +269,42 @@ const MessageBubble = memo(function MessageBubble({
 }) {
   const metaColor = mine ? 'rgba(255,255,255,0.7)' : Colors.textMuted;
 
+  if (message.isSystemMessage) {
+    if (message.gift) {
+      const giftLabel = mine
+        ? `Has enviado ${message.gift.name}`
+        : otherUserName
+          ? `${titleCase(otherUserName)} ha enviado ${message.gift.name}`
+          : `Ha enviado ${message.gift.name}`;
+      return (
+        <View style={styles.giftRow}>
+          <View style={styles.giftCard}>
+            <Image
+              source={{ uri: message.gift.iconUrl }}
+              style={styles.giftIcon}
+              contentFit="contain"
+            />
+            <AppText variant="caption" style={styles.giftText}>
+              ✨ {giftLabel} ✨
+            </AppText>
+          </View>
+        </View>
+      );
+    }
+    const systemLabel =
+      message.content || 'Notificación del sistema';
+    return (
+      <View style={styles.systemMessageRow}>
+        <AppText
+          variant="caption"
+          color={Colors.textMuted}
+          style={styles.systemMessageText}>
+          ✨ {systemLabel} ✨
+        </AppText>
+      </View>
+    );
+  }
+
   return (
     <View
       style={[
@@ -373,17 +432,31 @@ export default function ChatScreen() {
   const [isRecipientOnline, setIsRecipientOnline] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [zumbidoCooldown, setZumbidoCooldown] = useState(false);
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [sendingGiftId, setSendingGiftId] = useState<string | null>(null);
 
   const listRef = useRef<FlatList<ChatListItem>>(null);
   const atBottomRef = useRef(true);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const zumbidoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+    void useGiftStore.getState().ensureGifts(session);
+  }, [session]);
 
   useEffect(() => {
     return () => {
       if (highlightTimeoutRef.current) {
         clearTimeout(highlightTimeoutRef.current);
+      }
+      if (zumbidoTimeoutRef.current) {
+        clearTimeout(zumbidoTimeoutRef.current);
       }
     };
   }, []);
@@ -436,10 +509,18 @@ export default function ChatScreen() {
           if (!newMessage?.id || newMessage.senderId === session.user.id) {
             return;
           }
+          let incomingMessage = newMessage;
+          if (newMessage.isSystemMessage && newMessage.giftId) {
+            const foundGift = selectGiftById(
+              useGiftStore.getState(),
+              newMessage.giftId,
+            );
+            incomingMessage = { ...newMessage, gift: foundGift };
+          }
           setMessages((prev) =>
             prev.some((m) => m.id === newMessage.id)
               ? prev
-              : [...prev, newMessage],
+              : [...prev, incomingMessage],
           );
           void markMatchRead(session, matchId).catch((error) => {
             console.error('[chat] mark-read failed:', error);
@@ -615,6 +696,104 @@ export default function ChatScreen() {
       setSending(false);
     }
   }
+
+  const handleSendZumbido = useCallback(async () => {
+    if (!session || !matchId || zumbidoCooldown) {
+      return;
+    }
+    const profile = useAuthStore.getState().profile;
+    const isLeyenda = profile?.isLeyenda ?? false;
+    const dailyZumbidosLeft = profile?.dailyZumbidosLeft ?? 0;
+    const isFree = isLeyenda && dailyZumbidosLeft > 0;
+
+    setZumbidoCooldown(true);
+    try {
+      const message = await sendZumbido(session, matchId);
+      if (isFree) {
+        useAuthStore.getState().updateProfile({
+          dailyZumbidosLeft: dailyZumbidosLeft - 1,
+        });
+        toast.success('Zumbido enviado', 'Gratis · Cuy Leyenda');
+      } else {
+        const currentBalance =
+          useAuthStore.getState().profile?.coinsBalance ?? 0;
+        useAuthStore
+          .getState()
+          .setCoinsBalance(currentBalance - ZUMBIDO_COST_IN_COINS);
+        toast.success('Zumbido enviado', '-5 Cuy Coins');
+      }
+      setMessages((prev) =>
+        prev.some((m) => m.id === message.id) ? prev : [...prev, message],
+      );
+    } catch (error) {
+      console.error('[chat] zumbido failed:', error);
+      toast.error(
+        extractApiErrorMessage(error, 'No se pudo enviar el zumbido'),
+        'Revisa tu conexión e inténtalo de nuevo.',
+      );
+    } finally {
+      if (zumbidoTimeoutRef.current) {
+        clearTimeout(zumbidoTimeoutRef.current);
+      }
+      zumbidoTimeoutRef.current = setTimeout(() => {
+        setZumbidoCooldown(false);
+      }, ZUMBIDO_COOLDOWN_MS);
+    }
+  }, [session, matchId, zumbidoCooldown]);
+
+  const openGiftModal = useCallback(() => {
+    setShowGiftModal(true);
+    if (!session) {
+      return;
+    }
+    void useGiftStore
+      .getState()
+      .ensureGifts(session)
+      .then((loaded) => {
+        if (!loaded) {
+          toast.error(
+            'No se pudieron cargar los regalos',
+            'Revisa tu conexión e inténtalo de nuevo.',
+          );
+        }
+      });
+  }, [session]);
+
+  const handleGiftPress = useCallback(
+    async (gift: VirtualGiftSummary) => {
+      if (!session || !matchId || sendingGiftId) {
+        return;
+      }
+      const currentBalance =
+        useAuthStore.getState().profile?.coinsBalance ?? 0;
+      if (currentBalance < gift.coinCost) {
+        toast.error(
+          'No tienes suficientes Cuy Coins',
+          'Recarga tu monedero e inténtalo de nuevo.',
+        );
+        return;
+      }
+      setSendingGiftId(gift.id);
+      try {
+        const message = await sendGift(session, matchId, gift.id);
+        useAuthStore.getState().setCoinsBalance(currentBalance - gift.coinCost);
+        setMessages((prev) =>
+          prev.some((m) => m.id === message.id) ? prev : [...prev, message],
+        );
+        setShowGiftModal(false);
+        toast.success('¡Regalo enviado!', `-${gift.coinCost} Cuy Coins`);
+      } catch (error) {
+        console.error('[chat] gift failed:', error);
+        toast.error(
+          extractApiErrorMessage(error, 'No se pudo enviar el regalo'),
+          'Revisa tu conexión e inténtalo de nuevo.',
+        );
+      } finally {
+        setSendingGiftId(null);
+      }
+    },
+    [session, matchId, sendingGiftId],
+  );
 
   const keyExtractor = useCallback(
     (item: ChatListItem) =>
@@ -814,6 +993,30 @@ export default function ChatScreen() {
             style={styles.input}
           />
           <Pressable
+            onPress={openGiftModal}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.zumbidoButton,
+              pressed && styles.zumbidoButtonPressed,
+            ]}>
+            <AntDesign name="gift" size={22} color={Colors.primary} />
+          </Pressable>
+          <Pressable
+            onPress={() => void handleSendZumbido()}
+            disabled={zumbidoCooldown}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.zumbidoButton,
+              pressed && styles.zumbidoButtonPressed,
+              zumbidoCooldown && styles.zumbidoButtonDisabled,
+            ]}>
+            <Image
+              source={require('@/assets/images/zumbidoo.png')}
+              style={styles.zumbidoIcon}
+              contentFit="contain"
+            />
+          </Pressable>
+          <Pressable
             onPress={() => void handleSend()}
             disabled={sendDisabled}
             hitSlop={6}
@@ -826,6 +1029,13 @@ export default function ChatScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <GiftSelectorModal
+        visible={showGiftModal}
+        onClose={() => setShowGiftModal(false)}
+        sendingGiftId={sendingGiftId}
+        onGiftPress={(gift) => void handleGiftPress(gift)}
+      />
     </ScreenWrapper>
   );
 }
@@ -942,6 +1152,42 @@ const styles = StyleSheet.create({
   dateSepText: {
     textAlign: 'center',
     fontSize: 11,
+  },
+  systemMessageRow: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+  },
+  systemMessageText: {
+    textAlign: 'center',
+    fontStyle: 'italic',
+    fontSize: 12,
+  },
+  giftRow: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+  },
+  giftCard: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,215,0,0.45)',
+  },
+  giftIcon: {
+    width: 88,
+    height: 88,
+  },
+  giftText: {
+    textAlign: 'center',
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: Spacing.xs,
+    fontStyle: 'italic',
   },
   messageRow: {
     width: '100%',
@@ -1154,6 +1400,26 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
     ...Shadows.card,
+  },
+  zumbidoButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+    ...Shadows.button,
+  },
+  zumbidoButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.92 }],
+  },
+  zumbidoButtonDisabled: {
+    opacity: 0.45,
+  },
+  zumbidoIcon: {
+    width: 28,
+    height: 28,
   },
   sendButton: {
     width: 44,

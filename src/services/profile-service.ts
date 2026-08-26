@@ -47,6 +47,17 @@ export type UserProfileData = {
   longitude: number | null;
   preferences: ProfilePreferences | null;
   photos: ProfilePhoto[];
+  coinsBalance?: number;
+  cashBalanceInCents?: number;
+  referralCode?: string;
+  referralEarnings?: number;
+  isNinja?: boolean;
+  isLeyenda?: boolean;
+  leyendaExpiresAt?: string | null;
+  leyendaDaysLeft?: number;
+  dailyZumbidosLeft?: number;
+  dailyCuyazosLeft?: number;
+  ninjaDaysLeft?: number;
 };
 
 export type UpdateProfileData = {
@@ -187,6 +198,12 @@ export async function updateUserProfile(
   });
 
   return normalizeProfile(data);
+}
+
+export async function deleteAccount(session: Session): Promise<void> {
+  await api.delete('/users/me', {
+    headers: authHeaders(session),
+  });
 }
 
 export async function updateUserPreferences(

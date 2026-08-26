@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -25,6 +26,7 @@ import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { toast } from '@/lib/toast';
 import {
+  deleteAccount,
   getUserProfile,
   updateUserProfile,
   type GenderCode,
@@ -168,6 +170,7 @@ export default function EditProfileScreen() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -370,6 +373,42 @@ export default function EditProfileScreen() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function handleDeleteAccount() {
+    if (!session || deleting) return;
+
+    Alert.alert(
+      'Eliminar Cuenta',
+      '\u26A0\uFE0F \u00BFEst\u00E1s seguro? Esta acci\u00F3n es irreversible y perder\u00E1s todos tus Cuy Coins, matches y chats para siempre.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => void confirmDeleteAccount(),
+        },
+      ],
+    );
+  }
+
+  async function confirmDeleteAccount() {
+    if (!session || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteAccount(session);
+      await useAuthStore.getState().logout();
+      toast.success('Cuenta eliminada', 'Tu cuenta ha sido eliminada correctamente.');
+      router.replace('/');
+    } catch (error) {
+      console.error('[edit-profile] delete account failed:', error);
+      toast.error(
+        'No se pudo eliminar la cuenta',
+        'Int\u00E9ntalo de nuevo m\u00E1s tarde.',
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -583,6 +622,26 @@ export default function EditProfileScreen() {
                 onPress={() => void handleSave()}
                 style={styles.saveButton}
               />
+
+              <View style={styles.dangerSection}>
+                <View style={styles.dangerDivider} />
+                <Pressable
+                  onPress={handleDeleteAccount}
+                  disabled={deleting}
+                  style={({ pressed }) => [
+                    styles.dangerButton,
+                    pressed && styles.pressed,
+                    deleting && styles.dangerButtonDisabled,
+                  ]}>
+                  <AntDesign name="delete" size={18} color={Colors.danger} />
+                  <AppText
+                    variant="bodyMedium"
+                    color={Colors.danger}
+                    style={styles.dangerButtonText}>
+                    {deleting ? 'Eliminando...' : 'Eliminar mi cuenta'}
+                  </AppText>
+                </Pressable>
+              </View>
             </>
           )}
         </ScrollView>
@@ -819,5 +878,35 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: Spacing.sm,
+  },
+  dangerSection: {
+    width: '100%',
+    marginTop: Spacing.xl,
+    alignItems: 'center',
+  },
+  dangerDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: 'rgba(220,38,38,0.2)',
+    marginBottom: Spacing.lg,
+  },
+  dangerButton: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: 'rgba(220,38,38,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.25)',
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.md,
+  },
+  dangerButtonDisabled: {
+    opacity: 0.5,
+  },
+  dangerButtonText: {
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });

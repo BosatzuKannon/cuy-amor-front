@@ -295,10 +295,14 @@ function ProfileContent({
               accessibilityLabel="Super Like"
               accessibilityRole="button"
               style={[
-                styles.actionButton,
+                styles.superLikeButton,
                 !onSuperLike && styles.actionButtonDisabled,
               ]}>
-              <AntDesign name="star" size={34} color="#FFD700" />
+              <Image
+                source={require('@/assets/images/cuyazoo.png')}
+                style={styles.superLikeIcon}
+                contentFit="contain"
+              />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -525,5 +529,18 @@ const styles = StyleSheet.create({
   },
   actionButtonDisabled: {
     opacity: 0.5,
+  },
+  superLikeButton: {
+    width: 80,
+    height: 80,
+    borderRadius: Radius.pill,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+  },
+  superLikeIcon: {
+    width: 70,
+    height: 70,
   },
 });

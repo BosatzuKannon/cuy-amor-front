@@ -103,7 +103,9 @@ export async function loadUserProfile(session: Session) {
       toUserProfile(data, {
         id: session.user.id,
         email: session.user.email ?? null,
-        coinsBalance: current?.coinsBalance,
+        coinsBalance: data.coinsBalance ?? current?.coinsBalance,
+        cashBalanceInCents:
+          data.cashBalanceInCents ?? current?.cashBalanceInCents,
       }),
     );
     console.log('[auth-listener] profile loaded for user:', session.user.id);

@@ -1,9 +1,11 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   AppState,
   StyleSheet,
+  Vibration,
   View,
   useColorScheme,
 } from 'react-native';
@@ -15,9 +17,10 @@ import { toastConfig } from '@/components/ui/app-toast';
 import { initAuthListener } from '@/lib/auth-listener';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
-import { updateLastSeen } from '@/services/matches-service';
+import { updateLastSeen, type VirtualGiftSummary } from '@/services/matches-service';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useChatStore } from '@/store/useChatStore';
+import { selectGiftById, useGiftStore } from '@/store/useGiftStore';
 import { Colors } from '@/theme/colors';
 import { useAppFonts } from '@/theme/use-app-fonts';
 
@@ -29,9 +32,25 @@ type RealtimeMessagePayload = {
   senderId?: string;
   recipientId?: string | null;
   content?: string;
+  isSystemMessage?: boolean;
+  giftId?: string | null;
 };
 
 const MESSAGE_SNIPPET_MAX = 64;
+const ZUMBIDO_DURATION_MS = 5000;
+const GIFT_RECEIVER_SHARE = 0.35;
+const ZUMBIDO_VIBRATION_PATTERN = [
+  0,
+  1000,
+  200,
+  1000,
+  200,
+  1000,
+  200,
+  1000,
+  200,
+  1000,
+] as const;
 
 function truncateSnippet(content: string): string {
   const normalized = content.replace(/\s+/g, ' ').trim();
@@ -40,15 +59,96 @@ function truncateSnippet(content: string): string {
     : normalized;
 }
 
-function useGlobalMessageToasts() {
+function useZumbidoShake() {
+  const [shakeAnimation] = useState(() => new Animated.Value(0));
+  const shakeLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const shakeStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const stopZumbidoFeedback = useCallback(() => {
+    if (shakeStopTimeoutRef.current) {
+      clearTimeout(shakeStopTimeoutRef.current);
+      shakeStopTimeoutRef.current = null;
+    }
+    if (shakeLoopRef.current) {
+      shakeLoopRef.current.stop();
+      shakeLoopRef.current = null;
+    }
+    shakeAnimation.setValue(0);
+    Vibration.cancel();
+  }, [shakeAnimation]);
+
+  const triggerZumbido = useCallback(() => {
+    stopZumbidoFeedback();
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shakeAnimation, {
+          toValue: 12,
+          duration: 55,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeAnimation, {
+          toValue: -12,
+          duration: 55,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    shakeLoopRef.current = loop;
+    loop.start();
+    shakeStopTimeoutRef.current = setTimeout(() => {
+      shakeStopTimeoutRef.current = null;
+      if (shakeLoopRef.current) {
+        shakeLoopRef.current.stop();
+        shakeLoopRef.current = null;
+      }
+      shakeAnimation.setValue(0);
+      Vibration.cancel();
+    }, ZUMBIDO_DURATION_MS);
+    Vibration.vibrate([...ZUMBIDO_VIBRATION_PATTERN]);
+  }, [shakeAnimation, stopZumbidoFeedback]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') {
+        stopZumbidoFeedback();
+      }
+    });
+    return () => {
+      subscription.remove();
+      stopZumbidoFeedback();
+    };
+  }, [stopZumbidoFeedback]);
+
+  return { shakeAnimation, triggerZumbido };
+}
+
+function creditReceiverForGift(gift: VirtualGiftSummary) {
+  const receiverCut = Math.floor(gift.cashValueCops * GIFT_RECEIVER_SHARE);
+  const currentCash =
+    useAuthStore.getState().profile?.cashBalanceInCents ?? 0;
+  useAuthStore.getState().setCashBalance(currentCash + receiverCut);
+}
+
+function useGlobalMessageToasts({
+  onZumbidoReceived,
+}: {
+  onZumbidoReceived: () => void;
+}) {
   const session = useAuthStore((state) => state.session);
   const supabaseToken = useAuthStore((state) => state.supabaseToken);
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
+  const onZumbidoRef = useRef(onZumbidoReceived);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  useEffect(() => {
+    onZumbidoRef.current = onZumbidoReceived;
+  }, [onZumbidoReceived]);
 
   useEffect(() => {
     if (!session || !supabaseToken) {
@@ -72,10 +172,64 @@ function useGlobalMessageToasts() {
           const activeChatMatchId = /^\/chat\/([^/?]+)/.exec(
             pathnameRef.current ?? '',
           )?.[1];
-          if (
-            activeChatMatchId &&
-            decodeURIComponent(activeChatMatchId) === message.matchId
-          ) {
+          const isActiveChat =
+            Boolean(activeChatMatchId) &&
+            decodeURIComponent(activeChatMatchId as string) === message.matchId;
+          if (message.isSystemMessage === true) {
+            const isGift = Boolean(message.giftId);
+            if (isGift) {
+              const foundGift = selectGiftById(
+                useGiftStore.getState(),
+                message.giftId,
+              );
+              if (foundGift) {
+                creditReceiverForGift(foundGift);
+              } else {
+                void useGiftStore
+                  .getState()
+                  .ensureGifts(session)
+                  .then((loaded) => {
+                    if (!loaded) {
+                      return;
+                    }
+                    const retryGift = selectGiftById(
+                      useGiftStore.getState(),
+                      message.giftId,
+                    );
+                    if (retryGift) {
+                      creditReceiverForGift(retryGift);
+                    }
+                  })
+                  .catch(() => {});
+              }
+              if (!isActiveChat) {
+                const giftSenderName = useChatStore
+                  .getState()
+                  .matches.find((match) => match.id === message.matchId)
+                  ?.otherUser.firstName;
+                toast.newMessage(
+                  giftSenderName
+                    ? `¡${giftSenderName} te ha enviado un regalo!`
+                    : '¡Te ha enviado un regalo!',
+                );
+              }
+              return;
+            }
+            onZumbidoRef.current();
+            if (!isActiveChat) {
+              const buzzSenderName = useChatStore
+                .getState()
+                .matches.find((match) => match.id === message.matchId)
+                ?.otherUser.firstName;
+              toast.newMessage(
+                buzzSenderName
+                  ? `¡${buzzSenderName} te ha enviado un zumbido!`
+                  : '¡Te ha enviado un zumbido!',
+              );
+            }
+            return;
+          }
+          if (isActiveChat) {
             return;
           }
           const senderMatch = useChatStore
@@ -122,7 +276,9 @@ export default function RootLayout() {
   const profileReady = useAuthStore((state) => state.profileReady);
   const profileComplete = useAuthStore((state) => state.profileComplete);
 
-  useGlobalMessageToasts();
+  const { shakeAnimation, triggerZumbido } = useZumbidoShake();
+
+  useGlobalMessageToasts({ onZumbidoReceived: triggerZumbido });
   useLastSeenTracker();
 
   useEffect(() => {
@@ -158,6 +314,11 @@ export default function RootLayout() {
       <View style={styles.root}>
         <AppBackground />
 
+        <Animated.View
+          style={[
+            styles.shakeRoot,
+            { transform: [{ translateX: shakeAnimation }] },
+          ]}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
           <Stack.Protected guard={isAuthenticated && profileComplete}>
             <Stack.Screen name="(tabs)" />
@@ -201,7 +362,26 @@ export default function RootLayout() {
               presentation: 'card',
             }}
           />
+          <Stack.Screen
+            name="referrals"
+            options={{
+              presentation: 'card',
+            }}
+          />
+          <Stack.Screen
+            name="wallet/payout"
+            options={{
+              presentation: 'card',
+            }}
+          />
+          <Stack.Screen
+            name="wallet/wallet-history"
+            options={{
+              presentation: 'card',
+            }}
+          />
         </Stack>
+        </Animated.View>
 
         <AnimatedSplashOverlay />
 
@@ -215,5 +395,8 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.primary,
+  },
+  shakeRoot: {
+    flex: 1,
   },
 });
