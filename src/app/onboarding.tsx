@@ -1,13 +1,10 @@
-import DateTimePicker, {
-  type DateTimePickerChangeEvent,
-} from '@react-native-community/datetimepicker';
 import { AntDesign } from '@expo/vector-icons';
 import type { AxiosError } from 'axios';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -18,6 +15,9 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
 } from 'react-native';
 
 import { AppButton } from '@/components/ui/app-button';
@@ -57,6 +57,8 @@ const RELATIONSHIP_OPTIONS: {
   { label: 'Amistad', value: 'FRIENDSHIP' },
   { label: 'Relación', value: 'RELATIONSHIP' },
   { label: 'Solo conversar', value: 'CHAT' },
+  { label: 'Dejar que fluya', value: 'LET_IT_FLOW' },
+  { label: 'Algo casual', value: 'LIGHT_CASUAL' },
 ];
 
 const HOBBIES = [
@@ -108,19 +110,33 @@ function SelectChip({
   label,
   selected,
   onPress,
+  style,
+  labelStyle,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+  labelStyle?: StyleProp<TextStyle>;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, selected && styles.chipSelected]}>
+      style={({ pressed }) => [
+        styles.chip,
+        selected && styles.chipSelected,
+        style,
+        pressed && styles.chipPressed,
+      ]}>
       <AppText
         variant="tag"
         color={selected ? Colors.white : Colors.text}
-        style={selected ? styles.chipLabelSelected : undefined}>
+        style={[
+          selected ? styles.chipLabelSelected : undefined,
+          labelStyle,
+        ]}
+        numberOfLines={1}
+        adjustsFontSizeToFit>
         {label}
       </AppText>
       {selected ? (
@@ -135,7 +151,12 @@ export default function OnboardingScreen() {
 
   const [step, setStep] = useState(1);
   const [birthDate, setBirthDate] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dobDay, setDobDay] = useState('');
+  const [dobMonth, setDobMonth] = useState('');
+  const [dobYear, setDobYear] = useState('');
+  const [focusedDobField, setFocusedDobField] = useState<
+    'day' | 'month' | 'year' | null
+  >(null);
   const [gender, setGender] = useState<GenderCode | null>(null);
   const [interestedIn, setInterestedIn] = useState<InterestedInCode | null>(
     null,
@@ -157,12 +178,9 @@ export default function OnboardingScreen() {
 
   const locationRequested = useRef(false);
 
-  const maxBirthDate = useMemo(() => {
-    const date = new Date();
-    date.setFullYear(date.getFullYear() - 18);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }, []);
+  const dayInputRef = useRef<TextInput>(null);
+  const monthInputRef = useRef<TextInput>(null);
+  const yearInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (step === TOTAL_STEPS && !locationRequested.current) {
@@ -180,14 +198,55 @@ export default function OnboardingScreen() {
     );
   }
 
-  function handleDateChange(
-    _event: DateTimePickerChangeEvent,
-    selectedDate: Date,
-  ) {
-    setBirthDate(selectedDate);
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
+  function parseDob(): Date | null {
+    const day = Number(dobDay);
+    const month = Number(dobMonth);
+    const year = Number(dobYear);
+
+    if (
+      dobDay.length === 0 ||
+      dobMonth.length === 0 ||
+      dobYear.length === 0 ||
+      day < 1 ||
+      day > 31 ||
+      month < 1 ||
+      month > 12 ||
+      year < 1900 ||
+      year > new Date().getFullYear()
+    ) {
+      return null;
     }
+
+    const date = new Date(year, month - 1, day);
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      return null;
+    }
+    return date;
+  }
+
+  function handleDobDayChange(text: string) {
+    const digits = text.replace(/\D/g, '');
+    setDobDay(digits.slice(0, 2));
+    if (digits.length >= 2) {
+      monthInputRef.current?.focus();
+    }
+  }
+
+  function handleDobMonthChange(text: string) {
+    const digits = text.replace(/\D/g, '');
+    setDobMonth(digits.slice(0, 2));
+    if (digits.length >= 2) {
+      yearInputRef.current?.focus();
+    }
+  }
+
+  function handleDobYearChange(text: string) {
+    const digits = text.replace(/\D/g, '');
+    setDobYear(digits.slice(0, 4));
   }
 
   async function promptForLocation() {
@@ -289,28 +348,34 @@ export default function OnboardingScreen() {
   }
 
   function goBack() {
-    setShowDatePicker(false);
     setStep((current) => Math.max(1, current - 1));
   }
 
   function goNext() {
-    setShowDatePicker(false);
-
     if (step === 1) {
-      if (!birthDate || !gender) {
+      const parsedDob = parseDob();
+      if (!parsedDob) {
         toast.error(
           'Información incompleta',
-          'Selecciona tu fecha de nacimiento y tu género para continuar.',
+          'Ingresa una fecha de nacimiento válida en formato DD / MM / AAAA.',
         );
         return;
       }
-      if (getAge(birthDate) < 18) {
+      if (getAge(parsedDob) < 18) {
         toast.error(
           'Debes ser mayor de 18 años',
           'La fecha de nacimiento debe indicar al menos 18 años.',
         );
         return;
       }
+      if (!gender) {
+        toast.error(
+          'Información incompleta',
+          'Selecciona tu género para continuar.',
+        );
+        return;
+      }
+      setBirthDate(parsedDob);
       setStep(2);
       return;
     }
@@ -498,45 +563,64 @@ export default function OnboardingScreen() {
                       style={styles.label}>
                       Fecha de nacimiento
                     </AppText>
-                    <Pressable
-                      onPress={() => setShowDatePicker((visible) => !visible)}
-                      disabled={isBusy}
-                      style={({ pressed }) => [
-                        styles.dateButton,
-                        pressed && styles.dateButtonPressed,
-                      ]}>
-                      <AppText
-                        variant="label"
-                        color={birthDate ? Colors.text : Colors.textMuted}>
-                        {birthDate ? toIsoDate(birthDate) : 'Selecciona tu fecha'}
-                      </AppText>
-                      <AntDesign
-                        name={showDatePicker ? 'up' : 'down'}
-                        size={14}
-                        color={Colors.textMuted}
+                    <View style={styles.dobRow}>
+                      <TextInput
+                        ref={dayInputRef}
+                        value={dobDay}
+                        onChangeText={handleDobDayChange}
+                        onFocus={() => setFocusedDobField('day')}
+                        onBlur={() => setFocusedDobField(null)}
+                        placeholder="DD"
+                        placeholderTextColor={Colors.textMuted}
+                        keyboardType="numeric"
+                        maxLength={2}
+                        selectTextOnFocus
+                        style={[
+                          styles.dobInput,
+                          focusedDobField === 'day' && styles.dobInputFocused,
+                        ]}
                       />
-                    </Pressable>
-                    {birthDate ? (
-                      <AppText variant="caption" color={Colors.textMuted}>
-                        Tienes {getAge(birthDate)} años
-                      </AppText>
-                    ) : null}
-                    {showDatePicker ? (
-                      <View style={styles.datePickerContainer}>
-                        <DateTimePicker
-                          value={birthDate ?? maxBirthDate}
-                          mode="date"
-                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                          maximumDate={maxBirthDate}
-                          minimumDate={new Date(1940, 0, 1)}
-                          themeVariant="dark"
-                          textColor={Colors.white}
-                          accentColor={Colors.primary}
-                          onValueChange={handleDateChange}
-                          onDismiss={() => setShowDatePicker(false)}
-                        />
-                      </View>
-                    ) : null}
+                      <TextInput
+                        ref={monthInputRef}
+                        value={dobMonth}
+                        onChangeText={handleDobMonthChange}
+                        onFocus={() => setFocusedDobField('month')}
+                        onBlur={() => setFocusedDobField(null)}
+                        placeholder="MM"
+                        placeholderTextColor={Colors.textMuted}
+                        keyboardType="numeric"
+                        maxLength={2}
+                        selectTextOnFocus
+                        style={[
+                          styles.dobInput,
+                          focusedDobField === 'month' && styles.dobInputFocused,
+                        ]}
+                      />
+                      <TextInput
+                        ref={yearInputRef}
+                        value={dobYear}
+                        onChangeText={handleDobYearChange}
+                        onFocus={() => setFocusedDobField('year')}
+                        onBlur={() => setFocusedDobField(null)}
+                        placeholder="AAAA"
+                        placeholderTextColor={Colors.textMuted}
+                        keyboardType="numeric"
+                        maxLength={4}
+                        selectTextOnFocus
+                        style={[
+                          styles.dobInput,
+                          focusedDobField === 'year' && styles.dobInputFocused,
+                        ]}
+                      />
+                    </View>
+                    {(() => {
+                      const parsedDob = parseDob();
+                      return parsedDob ? (
+                        <AppText variant="caption" color={Colors.textMuted}>
+                          Tienes {getAge(parsedDob)} años
+                        </AppText>
+                      ) : null;
+                    })()}
                   </View>
 
                   <View style={styles.field}>
@@ -588,13 +672,15 @@ export default function OnboardingScreen() {
                       style={styles.label}>
                       ¿Qué buscas?
                     </AppText>
-                    <View style={styles.chipRowWrap}>
+                    <View style={styles.chipGrid}>
                       {RELATIONSHIP_OPTIONS.map((option) => (
                         <SelectChip
                           key={option.value}
                           label={option.label}
                           selected={relationshipGoal === option.value}
                           onPress={() => setRelationshipGoal(option.value)}
+                          style={styles.gridChip}
+                          labelStyle={styles.gridChipLabel}
                         />
                       ))}
                     </View>
@@ -954,29 +1040,28 @@ const styles = StyleSheet.create({
     minHeight: 132,
     textAlignVertical: 'top',
   },
-  dateButton: {
+  dobRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: Spacing.sm,
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  dobInput: {
+    width: '30%',
+    height: 34,
+    paddingVertical: 0,
+    includeFontPadding: false,
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+    textAlignVertical: 'center',
   },
-  dateButtonPressed: {
-    opacity: 0.75,
-  },
-  datePickerContainer: {
-    width: '100%',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(27,27,31,0.98)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    borderRadius: Radius.md,
-    overflow: 'hidden',
+  dobInputFocused: {
+    borderColor: Colors.primary,
   },
   chipRow: {
     flexDirection: 'row',
@@ -987,6 +1072,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
+  },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: Spacing.sm,
+    width: '100%',
+  },
+  gridChip: {
+    width: '48%',
+    justifyContent: 'center',
+  },
+  gridChipLabel: {
+    textAlign: 'center',
   },
   chip: {
     flexDirection: 'row',
@@ -1005,6 +1104,9 @@ const styles = StyleSheet.create({
   },
   chipLabelSelected: {
     fontWeight: '600',
+  },
+  chipPressed: {
+    opacity: 0.75,
   },
   photoRow: {
     flexDirection: 'row',

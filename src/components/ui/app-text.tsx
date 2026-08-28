@@ -1,4 +1,10 @@
-import { StyleSheet, Text as RNText, type TextProps, type TextStyle } from 'react-native';
+import {
+  StyleSheet,
+  Text as RNText,
+  type StyleProp,
+  type TextProps,
+  type TextStyle,
+} from 'react-native';
 
 import { Colors } from '@/theme/colors';
 import { Typography, type TypographyVariant } from '@/theme/typography';
@@ -6,7 +12,7 @@ import { Typography, type TypographyVariant } from '@/theme/typography';
 export type AppTextProps = TextProps & {
   variant?: TypographyVariant;
   color?: string;
-  style?: TextStyle | TextStyle[];
+  style?: StyleProp<TextStyle>;
 };
 
 export function AppText({

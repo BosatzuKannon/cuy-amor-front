@@ -12,7 +12,9 @@ export type RelationshipGoalCode =
   | 'CASUAL'
   | 'FRIENDSHIP'
   | 'RELATIONSHIP'
-  | 'CHAT';
+  | 'CHAT'
+  | 'LET_IT_FLOW'
+  | 'LIGHT_CASUAL';
 
 export type ProfilePhoto = {
   id: string;
@@ -86,7 +88,7 @@ export function toUserProfile(
       order: photo.order,
       isProfile: photo.isProfile,
     })),
-    coinsBalance: options.coinsBalance ?? DEFAULT_COINS_BALANCE,
+    coinsBalance: options.coinsBalance ?? 0,
     cashBalanceInCents: options.cashBalanceInCents ?? 0,
     referralCode: data.referralCode ?? null,
     referralEarnings: data.referralEarnings ?? 0,

@@ -69,7 +69,7 @@ export default function WelcomeScreen() {
           <View style={styles.brandRow}>
             <View style={styles.brandDot} />
             <AppText variant="tag" color="rgba(255,255,255,0.85)">
-              CONECTA. COMPARTE. VIVE
+              CONECTA. COMPARTE. VIVE Y GANA DINERO.
             </AppText>
           </View>
 
@@ -86,19 +86,34 @@ export default function WelcomeScreen() {
           <View style={styles.featureRow}>
             <View style={styles.featureItem}>
               <AntDesign name="heart" size={22} color={Colors.primary} />
-              <AppText variant="tag" color={Colors.text} style={styles.featureLabel}>
+              <AppText
+                variant="tag"
+                color={Colors.text}
+                style={styles.featureLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
                 Match local
               </AppText>
             </View>
             <View style={styles.featureItem}>
               <AntDesign name="message" size={22} color={Colors.secondary} />
-              <AppText variant="tag" color={Colors.text} style={styles.featureLabel}>
+              <AppText
+                variant="tag"
+                color={Colors.text}
+                style={styles.featureLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
                 Chats en vivo
               </AppText>
             </View>
             <View style={styles.featureItem}>
               <AntDesign name="gift" size={22} color={Colors.tertiary} />
-              <AppText variant="tag" color={Colors.text} style={styles.featureLabel}>
+              <AppText
+                variant="tag"
+                color={Colors.text}
+                style={styles.featureLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
                 Regalos
               </AppText>
             </View>
@@ -116,6 +131,8 @@ export default function WelcomeScreen() {
             iconLeft={<AntDesign name="google" size={20} color={Colors.white} />}
           />
 
+          {/* TODO: Translate to "¿Problemas para iniciar sesión?" and implement recovery logic later. */}
+          {/*
           <Pressable
             onPress={() => console.log('Trouble signing in pressed')}
             hitSlop={Spacing.md}
@@ -126,6 +143,7 @@ export default function WelcomeScreen() {
               Trouble signing in?
             </AppText>
           </Pressable>
+          */}
         </View>
       </ScreenWrapper>
     </View>
@@ -157,7 +175,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.white,
+    backgroundColor: '#25D366',
   },
   heroTitle: {
     fontSize: 56,
@@ -180,17 +198,20 @@ const styles = StyleSheet.create({
   },
   featureRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-evenly',
     alignItems: 'flex-start',
-    gap: Spacing.md,
+    width: '100%',
   },
   featureItem: {
-    flexDirection: 'row',
+    flex: 1,
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: Spacing.xs,
   },
   featureLabel: {
     textTransform: 'uppercase',
+    textAlign: 'center',
+    marginTop: 4,
+    flexShrink: 1,
   },
   signInHelp: {
     alignItems: 'flex-start',

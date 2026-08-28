@@ -12,7 +12,9 @@ export type RelationshipGoalCode =
   | 'CASUAL'
   | 'FRIENDSHIP'
   | 'RELATIONSHIP'
-  | 'CHAT';
+  | 'CHAT'
+  | 'LET_IT_FLOW'
+  | 'LIGHT_CASUAL';
 
 export type ProfilePreferences = {
   pushNotifications: boolean;

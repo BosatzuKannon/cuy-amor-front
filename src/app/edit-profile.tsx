@@ -17,6 +17,7 @@ import {
   TextInput,
   View,
   type StyleProp,
+  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 
@@ -33,6 +34,7 @@ import {
   type InterestedInCode,
   type PhotoDraft,
   type ProfilePhoto,
+  type RelationshipGoalCode,
 } from '@/services/profile-service';
 import {
   toUserProfile,
@@ -59,6 +61,15 @@ const INTERESTED_IN_OPTIONS: { label: string; value: InterestedInCode }[] = [
   { label: 'Ambos', value: 'BOTH' },
 ];
 
+const RELATIONSHIP_OPTIONS: { label: string; value: RelationshipGoalCode }[] = [
+  { label: 'Parchar', value: 'CASUAL' },
+  { label: 'Amistad', value: 'FRIENDSHIP' },
+  { label: 'Relación', value: 'RELATIONSHIP' },
+  { label: 'Solo conversar', value: 'CHAT' },
+  { label: 'Dejar que fluya', value: 'LET_IT_FLOW' },
+  { label: 'Algo casual', value: 'LIGHT_CASUAL' },
+];
+
 function toIsoDate(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -78,10 +89,14 @@ function SelectChip({
   label,
   selected,
   onPress,
+  style,
+  labelStyle,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+  labelStyle?: StyleProp<TextStyle>;
 }) {
   return (
     <Pressable
@@ -89,12 +104,15 @@ function SelectChip({
       style={({ pressed }) => [
         styles.chip,
         selected && styles.chipSelected,
+        style,
         pressed && styles.pressed,
       ]}>
       <AppText
         variant="tag"
         color={selected ? Colors.white : Colors.text}
-        style={styles.chipText}>
+        style={[styles.chipText, selected && styles.chipTextSelected, labelStyle]}
+        numberOfLines={1}
+        adjustsFontSizeToFit>
         {label}
       </AppText>
       {selected ? <AntDesign name="check" size={12} color={Colors.white} /> : null}
@@ -177,6 +195,8 @@ export default function EditProfileScreen() {
   const [bio, setBio] = useState('');
   const [gender, setGender] = useState<GenderCode | null>(null);
   const [interestedIn, setInterestedIn] = useState<InterestedInCode | null>(null);
+  const [relationshipGoal, setRelationshipGoal] =
+    useState<RelationshipGoalCode | null>(null);
   const [birthDate, setBirthDate] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [photos, setPhotos] = useState<PhotoState[]>([]);
@@ -208,6 +228,7 @@ export default function EditProfileScreen() {
         setBio(profile.bio ?? '');
         setGender(profile.gender);
         setInterestedIn(profile.interestedIn);
+        setRelationshipGoal(profile.relationshipGoal);
         setBirthDate(profile.birthDate);
         setPhotos(
           (profile.photos ?? [])
@@ -345,6 +366,7 @@ export default function EditProfileScreen() {
           gender,
           birthDate,
           ...(interestedIn ? { interestedIn } : {}),
+          ...(relationshipGoal ? { relationshipGoal } : {}),
         },
         photoDrafts,
         session,
@@ -609,6 +631,24 @@ export default function EditProfileScreen() {
                     ))}
                   </View>
                 </View>
+
+                <View style={styles.field}>
+                  <AppText variant="tag" color={Colors.textMuted} style={styles.fieldLabel}>
+                    ¿Qué buscas?
+                  </AppText>
+                  <View style={styles.chipGrid}>
+                    {RELATIONSHIP_OPTIONS.map((option) => (
+                      <SelectChip
+                        key={option.value}
+                        label={option.label}
+                        selected={relationshipGoal === option.value}
+                        onPress={() => setRelationshipGoal(option.value)}
+                        style={styles.gridChip}
+                        labelStyle={styles.gridChipLabel}
+                      />
+                    ))}
+                  </View>
+                </View>
               </View>
 
               <AppButton
@@ -858,6 +898,20 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.sm,
   },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: Spacing.sm,
+    width: '100%',
+  },
+  gridChip: {
+    width: '48%',
+    justifyContent: 'center',
+  },
+  gridChipLabel: {
+    textAlign: 'center',
+  },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -875,6 +929,9 @@ const styles = StyleSheet.create({
   },
   chipText: {
     textAlign: 'left',
+  },
+  chipTextSelected: {
+    fontWeight: '600',
   },
   saveButton: {
     marginTop: Spacing.sm,

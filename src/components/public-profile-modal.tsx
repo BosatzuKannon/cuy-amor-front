@@ -40,6 +40,8 @@ const RELATIONSHIP_GOAL_LABELS: Record<RelationshipGoalCode, string> = {
   FRIENDSHIP: 'Amistad',
   RELATIONSHIP: 'Relación',
   CHAT: 'Solo conversar',
+  LET_IT_FLOW: 'Dejar que fluya',
+  LIGHT_CASUAL: 'Algo casual',
 };
 
 type PublicProfileModalProps = {
