@@ -1,4 +1,4 @@
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { Image } from 'expo-image';
@@ -64,7 +64,8 @@ function PackageCard({
             variant="tag"
             color={Colors.text}
             style={styles.badgeText}
-            numberOfLines={1}>
+            numberOfLines={1}
+            adjustsFontSizeToFit>
             {coinPackage.badge}
           </AppText>
         </View>
@@ -84,7 +85,7 @@ function PackageCard({
         </AppText>
       </View>
 
-      <AppText variant="bodyMedium" color={Colors.text} style={styles.packageName}>
+      <AppText variant="caption" color={Colors.textMuted} style={styles.packageName}>
         {coinPackage.name}
       </AppText>
 
@@ -103,11 +104,11 @@ function PackageCard({
           pressed && styles.buyButtonPressed,
         ]}>
         {isCheckingOut ? (
-          <ActivityIndicator color={Colors.primary} />
+          <ActivityIndicator color={Colors.white} size="small" />
         ) : (
           <AppText
-            variant="bodyMedium"
-            color={Colors.primary}
+            variant="label"
+            color={Colors.white}
             style={styles.buyButtonText}>
             Comprar
           </AppText>
@@ -307,8 +308,21 @@ export default function BuyCoinsScreen() {
             ]}>
             <AntDesign name="left" size={20} color={Colors.white} />
           </Pressable>
-          <AppText variant="h3" color={Colors.white} style={styles.title}>
+        </View>
+
+        <View style={styles.hero}>
+          <View style={styles.heroIconWrap}>
+            <Ionicons name="storefront" size={32} color={Colors.white} />
+          </View>
+          <AppText variant="h2" color={Colors.white} style={styles.heroTitle}>
             Tienda de Cuy Coins
+          </AppText>
+          <AppText
+            variant="body"
+            color="rgba(255,255,255,0.9)"
+            style={styles.heroSubtitle}>
+            Recarga tus Cuy Coins para destacar tu perfil y conectar con más
+            personas.
           </AppText>
         </View>
 
@@ -382,7 +396,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xxs,
   },
   backButton: {
     width: 40,
@@ -396,9 +410,29 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     transform: [{ scale: 0.95 }],
   },
-  title: {
-    textAlign: 'left',
-    flexShrink: 1,
+  hero: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.xl,
+    marginTop: Spacing.md,
+  },
+  heroIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  heroTitle: {
+    textAlign: 'center',
+    fontSize: 24,
+    lineHeight: 30,
+    marginBottom: Spacing.xs,
+  },
+  heroSubtitle: {
+    textAlign: 'center',
   },
   centerWrap: {
     alignItems: 'center',
@@ -418,64 +452,78 @@ const styles = StyleSheet.create({
   },
   listWrap: {
     width: '100%',
-    gap: Spacing.lg,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: Spacing.lg,
   },
   packageCard: {
-    width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: Radius.xl,
+    width: '47.5%',
+    backgroundColor: 'rgba(248, 249, 250, 0.95)',
+    borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.6)',
-    padding: Spacing.lg,
-    elevation: 0,
-    shadowOpacity: 0,
+    padding: Spacing.md,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    marginBottom: Spacing.sm,
   },
   badgeChip: {
     position: 'absolute',
-    top: -12,
-    right: Spacing.lg,
+    top: Spacing.xs,
+    right: Spacing.xs,
     zIndex: 5,
     elevation: 3,
     backgroundColor: Colors.gold,
     borderRadius: Radius.pill,
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    maxWidth: '60%',
-    ...Shadows.button,
+    paddingVertical: 2,
+    paddingHorizontal: Spacing.sm,
+    maxWidth: '88%',
   },
   badgeText: {
     textAlign: 'center',
     fontWeight: '700',
     textTransform: 'uppercase',
+    fontSize: 9,
+    lineHeight: 13,
   },
   coinsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
     marginBottom: Spacing.xs,
   },
   coinIcon: {
-    width: 24,
-    height: 24,
+    width: 22,
+    height: 22,
   },
   coinsAmount: {
-    textAlign: 'left',
+    textAlign: 'center',
     fontWeight: '700',
+    fontSize: 24,
+    lineHeight: 30,
   },
   packageName: {
-    textAlign: 'left',
+    textAlign: 'center',
     marginBottom: Spacing.xs,
+    minHeight: 17,
+    flexShrink: 1,
   },
   packagePrice: {
-    textAlign: 'left',
+    textAlign: 'center',
     fontWeight: '700',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   buyButton: {
-    width: '100%',
+    minWidth: '80%',
     backgroundColor: Colors.primary,
-    borderRadius: Radius.pill,
-    paddingVertical: Spacing.sm + 6,
+    borderRadius: 20,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.button,
