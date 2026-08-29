@@ -1,12 +1,16 @@
 import { AntDesign } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { ageFromBirthDate, formatDistance } from '@/lib/profile-format';
 import { titleCase } from '@/lib/text';
-import type { ExploreProfile } from '@/services/profile-service';
+import type {
+  ExploreProfile,
+  RelationshipGoalCode,
+} from '@/services/profile-service';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
 
@@ -18,6 +22,15 @@ const CARD_GRADIENTS: Record<string, CardGradient> = {
   FEMALE: { colors: ['#f9a8d4', '#a855f7'] },
   MALE: { colors: ['#40E0D0', '#007FFF'] },
   OTHER: { colors: ['#FFD700', '#16A34A'] },
+};
+
+const RELATIONSHIP_GOAL_LABELS: Record<RelationshipGoalCode, string> = {
+  CASUAL: 'Parchar',
+  FRIENDSHIP: 'Amistad',
+  RELATIONSHIP: 'Relación',
+  CHAT: 'Solo conversar',
+  LET_IT_FLOW: 'Dejar que fluya',
+  LIGHT_CASUAL: 'Algo casual',
 };
 
 function cardGradientFor(gender: ExploreProfile['gender']): CardGradient {
@@ -37,6 +50,9 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
   const name = titleCase(profile.firstName ?? '');
   const age = ageFromBirthDate(profile.birthDate);
   const distanceLabel = formatDistance(profile.distance) ?? 'Cerca de ti';
+  const goalLabel = profile.relationshipGoal
+    ? RELATIONSHIP_GOAL_LABELS[profile.relationshipGoal]
+    : null;
 
   return (
     <View style={styles.card}>
@@ -51,11 +67,7 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
           accessibilityRole="button"
           accessibilityLabel={`Ver perfil público de ${name}`}>
           {profile.photo ? (
-            <Image
-              source={{ uri: profile.photo.url }}
-              style={styles.image}
-              contentFit="cover"
-            />
+            <CardPhoto key={profile.photo.url} photoUrl={profile.photo.url} />
           ) : (
             <View style={[styles.image, styles.placeholder]}>
               <AppText
@@ -82,14 +94,26 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
               {name}
               {age !== null ? `, ${age}` : ''}
             </AppText>
-            <View style={styles.distancePill}>
-              <AntDesign name="environment" size={12} color={Colors.white} />
-              <AppText
-                variant="tag"
-                color={Colors.white}
-                style={styles.distanceText}>
-                {distanceLabel}
-              </AppText>
+            <View style={styles.pillsRow}>
+              <View style={styles.distancePill}>
+                <AntDesign name="environment" size={12} color={Colors.white} />
+                <AppText
+                  variant="tag"
+                  color={Colors.white}
+                  style={styles.distanceText}>
+                  {distanceLabel}
+                </AppText>
+              </View>
+              {goalLabel ? (
+                <View style={styles.goalPill}>
+                  <AppText
+                    variant="tag"
+                    color="#FFFFFF"
+                    style={styles.goalPillText}>
+                    {goalLabel}
+                  </AppText>
+                </View>
+              ) : null}
             </View>
             {profile.bio ? (
               <AppText
@@ -103,6 +127,28 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
           </View>
         </Pressable>
       </LinearGradient>
+    </View>
+  );
+}
+
+function CardPhoto({ photoUrl }: { photoUrl: string }) {
+  const [isImageLoading, setIsImageLoading] = useState(true);
+
+  return (
+    <View style={styles.image}>
+      <Image
+        source={{ uri: photoUrl }}
+        style={styles.imageFull}
+        contentFit="cover"
+        onLoadStart={() => setIsImageLoading(true)}
+        onLoadEnd={() => setIsImageLoading(false)}
+        onError={() => setIsImageLoading(false)}
+      />
+      {isImageLoading ? (
+        <View style={styles.imageLoading}>
+          <ActivityIndicator color="#DC143C" size="large" />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -130,6 +176,20 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  imageFull: {
+    flex: 1,
+    width: '100%',
+  },
+  imageLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E5E7EB',
+  },
   placeholder: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -153,18 +213,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: Spacing.lg,
     alignItems: 'flex-start',
+    rowGap: 6,
     zIndex: 10,
     elevation: 10,
   },
   overlayName: {
     textAlign: 'left',
   },
-  distancePill: {
+  pillsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    columnGap: 8,
+  },
+  distancePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.xs,
-    marginTop: Spacing.sm,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.pill,
@@ -176,8 +241,20 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     fontWeight: '600',
   },
+  goalPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  goalPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   overlayBio: {
     textAlign: 'left',
-    marginTop: Spacing.sm,
   },
 });

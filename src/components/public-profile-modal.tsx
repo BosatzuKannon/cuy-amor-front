@@ -44,6 +44,14 @@ const RELATIONSHIP_GOAL_LABELS: Record<RelationshipGoalCode, string> = {
   LIGHT_CASUAL: 'Algo casual',
 };
 
+const GENDER_BORDER_COLORS: Record<string, string> = {
+  FEMALE: '#F472B6',
+  MALE: '#22D3EE',
+  OTHER: '#FBBF24',
+};
+
+const GENDER_BORDER_WIDTH = 3;
+
 type PublicProfileModalProps = {
   visible: boolean;
   profile: ExploreProfile | null;
@@ -92,6 +100,9 @@ function ProfileContent({
   const goalLabel = profile.relationshipGoal
     ? RELATIONSHIP_GOAL_LABELS[profile.relationshipGoal]
     : null;
+  const genderBorderColor = profile.gender
+    ? GENDER_BORDER_COLORS[profile.gender]
+    : null;
   const hobbies = (profile.hobbies ?? []).filter(
     (hobby) => hobby.trim().length > 0,
   );
@@ -118,7 +129,13 @@ function ProfileContent({
           nestedScrollEnabled>
 
           {/* TASK 2: Floating Photo Slider */}
-          <View style={styles.photoCard}>
+          <View
+            style={[
+              styles.photoCard,
+              genderBorderColor
+                ? { borderWidth: GENDER_BORDER_WIDTH, borderColor: genderBorderColor }
+                : null,
+            ]}>
             {photos.length > 0 ? (
               <FlatList
                 data={photos}
@@ -429,11 +446,6 @@ const styles = StyleSheet.create({
     marginTop: 15,
     borderRadius: 20,
     backgroundColor: CARD_BG,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
   },
   infoContent: {
     paddingHorizontal: Spacing.lg,
@@ -539,7 +551,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
   },
   superLikeIcon: {
     width: 70,
