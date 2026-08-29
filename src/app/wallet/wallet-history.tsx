@@ -56,7 +56,7 @@ function HistoryItem({ entry }: { entry: WalletHistoryEntry }) {
   const displayAmount =
     entry.currencyType === 'CUY_COINS'
       ? `${Math.abs(entry.amountInCents)} Cuy Coins`
-      : copFormatter.format(Math.abs(entry.amountInCents));
+      : copFormatter.format(Math.abs(entry.amountInCents) / 100);
 
   return (
     <View style={styles.historyItem}>
@@ -74,7 +74,9 @@ function HistoryItem({ entry }: { entry: WalletHistoryEntry }) {
       <AppText
         variant="bodyMedium"
         color={isNegative ? Colors.danger : Colors.success}
-        style={styles.historyAmount}>
+        style={styles.historyAmount}
+        numberOfLines={1}
+        adjustsFontSizeToFit>
         {isNegative ? '-' : '+'}{displayAmount}
       </AppText>
     </View>
@@ -189,9 +191,12 @@ export default function WalletHistoryScreen() {
 
 const styles = StyleSheet.create({
   wrapper: {
+    flex: 1,
+    width: '100%',
     paddingHorizontal: 0,
     paddingTop: 0,
     paddingBottom: 0,
+    alignItems: 'stretch',
   },
   topBar: {
     width: '100%',
@@ -276,8 +281,9 @@ const styles = StyleSheet.create({
   },
   historyItem: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: Spacing.md,
+    width: '100%',
     paddingVertical: Spacing.md,
   },
   historyIconWrap: {
@@ -290,6 +296,7 @@ const styles = StyleSheet.create({
   },
   historyBody: {
     flex: 1,
+    marginHorizontal: Spacing.sm,
     gap: Spacing.xxs,
   },
   historyDesc: {
@@ -298,10 +305,12 @@ const styles = StyleSheet.create({
   historyAmount: {
     textAlign: 'right',
     fontWeight: '700',
+    flexShrink: 1,
   },
   separator: {
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: 'rgba(226, 114, 91, 0.15)',
     marginLeft: 52,
+    marginVertical: Spacing.sm,
   },
 });
