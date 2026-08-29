@@ -13,6 +13,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
@@ -149,6 +150,7 @@ function formatMessageTime(iso: string | null): string {
 }
 
 export default function MatchesScreen() {
+  const insets = useSafeAreaInsets();
   const session = useAuthStore((state) => state.session);
   const matches = useChatStore((state) => state.matches);
   const loading = useChatStore((state) => state.loading);
@@ -167,18 +169,11 @@ export default function MatchesScreen() {
     <ScreenWrapper background="transparent" style={styles.wrapper}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 30 },
+        ]}
         showsVerticalScrollIndicator={false}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandDot} />
-          <AppText
-            variant="tag"
-            color="rgba(255,255,255,0.9)"
-            style={styles.brandText}>
-            CUY AMOR
-          </AppText>
-        </View>
-
         <AppText variant="h2" color={Colors.white} style={styles.title}>
           Mis Cuyes
         </AppText>
@@ -314,26 +309,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: Spacing.md,
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
     paddingBottom: Spacing.huge,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  brandDot: {
-    width: 10,
-    height: 10,
-    borderRadius: Radius.pill,
-    backgroundColor: '#00D166',
-  },
-  brandText: {
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    letterSpacing: 1,
   },
   title: {
     textAlign: 'left',

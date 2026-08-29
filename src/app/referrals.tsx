@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
@@ -19,6 +20,7 @@ const copFormatter = new Intl.NumberFormat('es-CO', {
 });
 
 export default function ReferralsScreen() {
+  const insets = useSafeAreaInsets();
   const profile = useAuthStore((s) => s.profile);
   const referralCode = profile?.referralCode ?? null;
   const referralEarnings = profile?.referralEarnings ?? 0;
@@ -41,17 +43,11 @@ export default function ReferralsScreen() {
     <ScreenWrapper background="transparent" style={styles.wrapper}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 60 },
+        ]}
         showsVerticalScrollIndicator={false}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backRow, pressed && styles.backPressed]}>
-          <AntDesign name="left" size={18} color={Colors.white} />
-          <AppText variant="bodyMedium" color={Colors.white}>
-            Mi perfil
-          </AppText>
-        </Pressable>
-
         <View style={styles.header}>
           <View style={styles.iconCircle}>
             <AntDesign name="team" size={32} color={Colors.primary} />
@@ -214,6 +210,19 @@ export default function ReferralsScreen() {
           style={styles.shareButton}
         />
       </ScrollView>
+
+      <Pressable
+        onPress={() => router.back()}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Volver"
+        style={({ pressed }) => [
+          styles.backButton,
+          { top: insets.top + Spacing.sm, right: Spacing.lg },
+          pressed && styles.backPressed,
+        ]}>
+        <AntDesign name="left" size={20} color={Colors.white} />
+      </Pressable>
     </ScreenWrapper>
   );
 }
@@ -232,12 +241,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  backRow: {
-    flexDirection: 'row',
+  backButton: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.xl,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    zIndex: 50,
+    elevation: 50,
   },
   backPressed: {
     opacity: 0.6,

@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
 import { AppButton } from '@/components/ui/app-button';
@@ -106,6 +107,7 @@ function BalanceTile({
 }
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const profile = useAuthStore((s) => s.profile);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showLeyendaModal, setShowLeyendaModal] = useState(false);
@@ -152,18 +154,11 @@ export default function ProfileScreen() {
     <ScreenWrapper background="transparent" style={styles.wrapper}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 60 },
+        ]}
         showsVerticalScrollIndicator={false}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandDot} />
-          <AppText
-            variant="tag"
-            color="rgba(255,255,255,0.9)"
-            style={styles.brandText}>
-            CUY AMOR
-          </AppText>
-        </View>
-
         <View style={styles.header}>
           <LinearGradient
             colors={avatarGradient.colors}
@@ -399,25 +394,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingBottom: 40,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-    marginBottom: 24,
-  },
-  brandDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#00D166',
-  },
-  brandText: {
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    letterSpacing: 1,
   },
   header: {
     width: '100%',
