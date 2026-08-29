@@ -1,3 +1,4 @@
+import { AntDesign, FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import {
   BeVietnamPro_400Regular,
   BeVietnamPro_500Medium,
@@ -9,9 +10,9 @@ import {
   WorkSans_600SemiBold,
   WorkSans_700Bold,
 } from '@expo-google-fonts/work-sans';
-import { useFonts } from 'expo-font';
+import { useFonts, type FontSource } from 'expo-font';
 
-export const fontAssets = {
+const appFonts: Record<string, FontSource> = {
   BeVietnamPro_400Regular,
   BeVietnamPro_500Medium,
   BeVietnamPro_600SemiBold,
@@ -19,7 +20,19 @@ export const fontAssets = {
   WorkSans_500Medium,
   WorkSans_600SemiBold,
   WorkSans_700Bold,
-} as const;
+};
+
+const iconFonts: Record<string, FontSource> = {
+  ...Ionicons.font,
+  ...AntDesign.font,
+  ...FontAwesome.font,
+  ...MaterialIcons.font,
+};
+
+export const fontAssets: Record<string, FontSource> = {
+  ...appFonts,
+  ...iconFonts,
+};
 
 export function useAppFonts() {
   return useFonts(fontAssets);

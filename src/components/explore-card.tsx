@@ -109,7 +109,8 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
+    //flex: 1,
+    height: '60%',
     width: '100%',
     borderRadius: Radius.xl,
     ...Shadows.card,
