@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Image } from 'expo-image';
 import type { ComponentProps } from 'react';
 import {
   StyleSheet,
@@ -9,6 +10,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { GenderCode } from '@/services/profile-service';
+import { useAuthStore, type UserProfile } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 
 
@@ -29,11 +32,18 @@ const TAB_ICONS: Record<TabKey, { default: IconName; focused: IconName }> = {
 const BAR_MARGIN = 20;
 const BAR_HEIGHT = 70;
 
+const GENDER_BORDER_COLORS: Record<GenderCode, string> = {
+  FEMALE: '#F472B6',
+  MALE: '#22D3EE',
+  OTHER: '#FBBF24',
+};
+
 export default function AppTabs({
   unreadNotifications = false,
 }: AppTabsProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const profile = useAuthStore((state) => state.profile);
 
   const tabBarBottom = Math.max(insets.bottom, 14) + 11;
   const dotBottom = tabBarBottom + 36;
@@ -54,9 +64,9 @@ export default function AppTabs({
             { bottom: tabBarBottom, marginHorizontal: BAR_MARGIN },
           ],
         }}>
-        <Tabs.Screen name="home" options={tabOptions('home')} />
-        <Tabs.Screen name="matches" options={tabOptions('matches')} />
-        <Tabs.Screen name="profile" options={tabOptions('profile')} />
+        <Tabs.Screen name="home" options={tabOptions('home', profile)} />
+        <Tabs.Screen name="matches" options={tabOptions('matches', profile)} />
+        <Tabs.Screen name="profile" options={tabOptions('profile', profile)} />
         <Tabs.Screen name="explore" options={{ href: null }} />
       </Tabs>
 
@@ -76,7 +86,11 @@ export default function AppTabs({
   );
 }
 
-function tabOptions(route: TabKey) {
+function tabOptions(route: TabKey, profile: UserProfile | null) {
+  const avatarUrl =
+    profile?.photos?.find((photo) => photo.isProfile)?.url ??
+    profile?.photos?.[0]?.url;
+
   return {
     title: route === 'home' ? 'Explorar' : route === 'matches' ? 'Mis Cuyes' : 'Perfil',
     tabBarLabel:
@@ -101,9 +115,25 @@ function tabOptions(route: TabKey) {
 
       return (
         <View style={[styles.iconPill, focused && styles.iconPillActive]}>
-          <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name={iconName} size={22} color={color} />
-          </View>
+          {route === 'profile' && avatarUrl ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              style={[
+                styles.avatar,
+                {
+                  borderColor: profile?.gender
+                    ? GENDER_BORDER_COLORS[profile.gender]
+                    : Colors.textMuted,
+                },
+                focused && styles.avatarFocused,
+              ]}
+              contentFit="cover"
+            />
+          ) : (
+            <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={iconName} size={22} color={color} />
+            </View>
+          )}
         </View>
       );
     },
@@ -151,6 +181,15 @@ const styles = StyleSheet.create({
   },
   iconPillActive: {
     backgroundColor: 'rgba(220, 20, 60, 0.15)',
+  },
+  avatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  avatarFocused: {
+    borderWidth: 3,
   },
   unreadDot: {
     position: 'absolute',
