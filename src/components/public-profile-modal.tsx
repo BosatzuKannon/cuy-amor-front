@@ -13,7 +13,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { AppBackground } from '@/components/ui/app-background';
@@ -78,6 +78,7 @@ function ProfileContent({
 }: ProfileContentProps) {
   const { width: screenWidth, height: windowHeight } =
     Dimensions.get('window');
+  const insets = useSafeAreaInsets();
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
   const photos = useMemo(() => {
@@ -122,9 +123,12 @@ function ProfileContent({
 
   return (
     <View style={styles.modalRoot}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={[ 'bottom']}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 60 },
+          ]}
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled>
 
@@ -188,21 +192,9 @@ function ProfileContent({
                 ))}
               </View>
             ) : null}
-
-            <Pressable
-              onPress={onClose}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar perfil"
-              style={({ pressed }) => [
-                styles.closeButton,
-                pressed && styles.closeButtonPressed,
-              ]}>
-              <AntDesign name="close" size={20} color={Colors.white} />
-            </Pressable>
           </View>
 
-          {/* TASK 3: Semi-Transparent Header Card */}
+          {/* Semi-Transparent Header Card */}
           <View style={styles.infoCard}>
             <View style={styles.infoContent}>
               <AppText variant="h2" color={TEXT_DARK} style={styles.nameText}>
@@ -340,6 +332,19 @@ function ProfileContent({
 
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
+
+        <Pressable
+          onPress={onClose}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar perfil"
+          style={({ pressed }) => [
+            styles.closeButton,
+            { top: insets.top + Spacing.sm, right: Spacing.lg },
+            pressed && styles.closeButtonPressed,
+          ]}>
+          <AntDesign name="close" size={20} color={Colors.white} />
+        </Pressable>
       </SafeAreaView>
     </View>
   );
@@ -426,16 +431,14 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
     width: 36,
     height: 36,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)',
-    zIndex: 30,
-    elevation: 30,
+    zIndex: 50,
+    elevation: 50,
   },
   closeButtonPressed: {
     opacity: 0.7,
