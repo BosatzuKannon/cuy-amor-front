@@ -8,6 +8,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
@@ -81,6 +82,7 @@ function HistoryItem({ entry }: { entry: WalletHistoryEntry }) {
 }
 
 export default function WalletHistoryScreen() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<Tab>('REAL_MONEY');
   const [entries, setEntries] = useState<WalletHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,7 +115,7 @@ export default function WalletHistoryScreen() {
 
   return (
     <ScreenWrapper background="transparent" style={styles.wrapper}>
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 0 }]}>
         <Pressable
           onPress={handleBack}
           hitSlop={12}
@@ -197,7 +199,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    marginTop: 70,
     marginBottom: Spacing.lg,
   },
   backButton: {

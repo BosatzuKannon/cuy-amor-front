@@ -156,7 +156,7 @@ export default function ProfileScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 60 },
+          { paddingTop: insets.top + 20 },
         ]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.header}>

@@ -7,9 +7,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Animated,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -190,6 +190,7 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -401,19 +402,7 @@ export default function EditProfileScreen() {
 
   function handleDeleteAccount() {
     if (!session || deleting) return;
-
-    Alert.alert(
-      'Eliminar Cuenta',
-      '\u26A0\uFE0F \u00BFEst\u00E1s seguro? Esta acci\u00F3n es irreversible y perder\u00E1s todos tus Cuy Coins, matches y chats para siempre.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => void confirmDeleteAccount(),
-        },
-      ],
-    );
+    setShowDeleteModal(true);
   }
 
   async function confirmDeleteAccount() {
@@ -421,6 +410,7 @@ export default function EditProfileScreen() {
     setDeleting(true);
     try {
       await deleteAccount(session);
+      setShowDeleteModal(false);
       await useAuthStore.getState().logout();
       toast.success('Cuenta eliminada', 'Tu cuenta ha sido eliminada correctamente.');
       router.replace('/');
@@ -444,13 +434,26 @@ export default function EditProfileScreen() {
           style={styles.scroll}
           contentContainerStyle={[
             styles.content,
-            { paddingTop: insets.top + 60 },
+            { paddingTop: insets.top + 0 },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <AppText variant="h2" color={Colors.white} style={styles.title}>
-            Editar perfil
-          </AppText>
+          <View style={styles.header}>
+            <Pressable
+              onPress={handleBack}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Volver"
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && styles.pressed,
+              ]}>
+              <AntDesign name="left" size={20} color={Colors.white} />
+            </Pressable>
+            <AppText variant="h2" color={Colors.white} style={styles.title}>
+              Editar perfil
+            </AppText>
+          </View>
 
           {loading ? (
             <EditProfileSkeleton />
@@ -658,10 +661,10 @@ export default function EditProfileScreen() {
                     pressed && styles.pressed,
                     deleting && styles.dangerButtonDisabled,
                   ]}>
-                  <AntDesign name="delete" size={18} color={Colors.danger} />
+                  <AntDesign name="delete" size={18} color={Colors.white} />
                   <AppText
                     variant="bodyMedium"
-                    color={Colors.danger}
+                    color={Colors.white}
                     style={styles.dangerButtonText}>
                     {deleting ? 'Eliminando...' : 'Eliminar mi cuenta'}
                   </AppText>
@@ -672,18 +675,52 @@ export default function EditProfileScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Pressable
-        onPress={handleBack}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel="Volver"
-        style={({ pressed }) => [
-          styles.backButton,
-          { top: insets.top + Spacing.sm, right: Spacing.lg },
-          pressed && styles.pressed,
-        ]}>
-        <AntDesign name="left" size={20} color={Colors.white} />
-      </Pressable>
+      <Modal
+        transparent
+        visible={showDeleteModal}
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <AppText variant="h3" color={Colors.text} style={styles.modalTitle}>
+              Eliminar Cuenta
+            </AppText>
+            <AppText
+              variant="bodyMedium"
+              color={Colors.textMuted}
+              style={styles.modalText}>
+              {'\u26A0\uFE0F Est\u00E1s seguro? Esta acci\u00F3n es irreversible y perder\u00E1s todos tus Cuy Coins, matches y chats para siempre.'}
+            </AppText>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                style={({ pressed }) => [
+                  styles.modalButton,
+                  styles.modalButtonCancel,
+                  pressed && styles.pressed,
+                ]}>
+                <AppText variant="bodyMedium" color={Colors.text} style={styles.modalButtonText}>
+                  Cancelar
+                </AppText>
+              </Pressable>
+              <Pressable
+                onPress={() => void confirmDeleteAccount()}
+                disabled={deleting}
+                style={({ pressed }) => [
+                  styles.modalButton,
+                  styles.modalButtonDelete,
+                  pressed && styles.pressed,
+                  deleting && styles.dangerButtonDisabled,
+                ]}>
+                <AppText variant="bodyMedium" color={Colors.white} style={styles.modalButtonText}>
+                  {deleting ? 'Eliminando...' : 'Eliminar'}
+                </AppText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenWrapper>
   );
 }
@@ -705,23 +742,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+    alignSelf: 'stretch',
+  },
   backButton: {
-    position: 'absolute',
     width: 40,
     height: 40,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.18)',
-    zIndex: 50,
-    elevation: 50,
   },
   pressed: {
     opacity: 0.7,
   },
   title: {
     textAlign: 'left',
-    marginBottom: Spacing.lg,
   },
   skeleton: {
     backgroundColor: '#E6E8EB',
@@ -922,7 +962,7 @@ const styles = StyleSheet.create({
   dangerDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: 'rgba(220,38,38,0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     marginBottom: Spacing.lg,
   },
   dangerButton: {
@@ -931,9 +971,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: 'rgba(220,38,38,0.08)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: Radius.pill,
     paddingVertical: Spacing.md,
   },
@@ -941,6 +981,50 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   dangerButtonText: {
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: Colors.white,
+    padding: Spacing.xl,
+    borderRadius: Radius.xl,
+    width: '85%',
+  },
+  modalTitle: {
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  modalText: {
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  modalButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.md,
+  },
+  modalButtonCancel: {
+    backgroundColor: Colors.neutral,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalButtonDelete: {
+    backgroundColor: Colors.danger,
+  },
+  modalButtonText: {
     textAlign: 'center',
     fontWeight: '600',
   },

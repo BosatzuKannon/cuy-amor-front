@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { usePathname } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,9 +19,27 @@ function FloatingShape({
   return <View style={[styles.shape, { backgroundColor: color }, style]} />;
 }
 
+const ROUTES_WITHOUT_BRAND = new Set([
+  '/edit-profile',
+  '/search-preferences',
+  '/wallet/wallet-history',
+  '/wallet/payout',
+  '/wallet/buy-coins',
+  '/terms',
+  '/privacy',
+  '/referrals',
+]);
+
+const ROUTE_PREFIXES_WITHOUT_BRAND = ['/chat/'];
+
 export function AppBackground() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const isLeyenda = useAuthStore((s) => s.profile?.isLeyenda ?? false);
+
+  const hideBrand =
+    ROUTES_WITHOUT_BRAND.has(pathname) ||
+    ROUTE_PREFIXES_WITHOUT_BRAND.some((prefix) => pathname.startsWith(prefix));
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -35,23 +54,25 @@ export function AppBackground() {
       <FloatingShape color="rgba(139,69,19,0.28)" style={styles.shapeTwo} />
       <FloatingShape color="rgba(255,255,255,0.10)" style={styles.shapeThree} />
 
-      <View style={[styles.brandHeader, { paddingTop: insets.top + Spacing.sm }]}>
-        <Image
-          source={
-            isLeyenda
-              ? require('@/assets/images/iconvip.png')
-              : require('@/assets/images/icon1.png')
-          }
-          style={styles.brandLogo}
-          contentFit="contain"
-        />
-        <AppText
-          variant="tag"
-          color="rgba(255,255,255,0.9)"
-          style={styles.brandText}>
-          CUY AMOR
-        </AppText>
-      </View>
+      {!hideBrand ? (
+        <View style={[styles.brandHeader, { paddingTop: insets.top + Spacing.sm }]}>
+          <Image
+            source={
+              isLeyenda
+                ? require('@/assets/images/iconvip.png')
+                : require('@/assets/images/icon1.png')
+            }
+            style={styles.brandLogo}
+            contentFit="contain"
+          />
+          <AppText
+            variant="tag"
+            color="rgba(255,255,255,0.9)"
+            style={styles.brandText}>
+            CUY AMOR
+          </AppText>
+        </View>
+      ) : null}
     </View>
   );
 }

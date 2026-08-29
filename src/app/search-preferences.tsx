@@ -155,13 +155,26 @@ export default function SearchPreferencesScreen() {
           style={styles.scroll}
           contentContainerStyle={[
             styles.content,
-            { paddingTop: insets.top + 60 },
+            { paddingTop: insets.top + 0 },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <AppText variant="h2" color={Colors.white} style={styles.title}>
-            Ajustes de búsqueda
-          </AppText>
+          <View style={styles.header}>
+            <Pressable
+              onPress={handleBack}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Volver"
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && styles.pressed,
+              ]}>
+              <AntDesign name="left" size={20} color={Colors.white} />
+            </Pressable>
+            <AppText variant="h2" color={Colors.white} style={styles.title}>
+              Ajustes de búsqueda
+            </AppText>
+          </View>
 
           <View style={styles.card}>
             <AppText variant="tag" color={Colors.textMuted} style={styles.fieldLabel}>
@@ -250,19 +263,6 @@ export default function SearchPreferencesScreen() {
           />
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <Pressable
-        onPress={handleBack}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel="Volver"
-        style={({ pressed }) => [
-          styles.backButton,
-          { top: insets.top + Spacing.sm, right: Spacing.lg },
-          pressed && styles.pressed,
-        ]}>
-        <AntDesign name="left" size={20} color={Colors.white} />
-      </Pressable>
     </ScreenWrapper>
   );
 }
@@ -284,23 +284,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+    alignSelf: 'stretch',
+  },
   backButton: {
-    position: 'absolute',
     width: 40,
     height: 40,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.18)',
-    zIndex: 50,
-    elevation: 50,
   },
   pressed: {
     opacity: 0.7,
   },
   title: {
     textAlign: 'left',
-    marginBottom: Spacing.lg,
   },
   card: {
     width: '100%',

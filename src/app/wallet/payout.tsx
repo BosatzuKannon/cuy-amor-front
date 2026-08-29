@@ -11,6 +11,7 @@ import { requestPayout } from '@/services/wallet-service';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MIN_COP = 30000;
 
@@ -25,6 +26,7 @@ function formatCop(cents: number): string {
 }
 
 export default function PayoutScreen() {
+  const insets = useSafeAreaInsets();
   const profile = useAuthStore((s) => s.profile);
   const cashBalance = profile?.cashBalanceInCents ?? 0;
 
@@ -73,7 +75,10 @@ export default function PayoutScreen() {
     <ScreenWrapper background="transparent" style={styles.wrapper}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 0 },
+        ]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <Pressable
@@ -192,7 +197,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    marginTop: 70,
     marginBottom: Spacing.lg,
   },
   backButton: {

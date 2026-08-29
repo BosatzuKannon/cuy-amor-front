@@ -45,9 +45,24 @@ export default function ReferralsScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 60 },
+          { paddingTop: insets.top + 0 },
         ]}
         showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.backPressed,
+            ]}>
+            <AntDesign name="left" size={20} color={Colors.white} />
+          </Pressable>
+          
+        </View>
+
         <View style={styles.header}>
           <View style={styles.iconCircle}>
             <AntDesign name="team" size={32} color={Colors.primary} />
@@ -210,19 +225,6 @@ export default function ReferralsScreen() {
           style={styles.shareButton}
         />
       </ScrollView>
-
-      <Pressable
-        onPress={() => router.back()}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel="Volver"
-        style={({ pressed }) => [
-          styles.backButton,
-          { top: insets.top + Spacing.sm, right: Spacing.lg },
-          pressed && styles.backPressed,
-        ]}>
-        <AntDesign name="left" size={20} color={Colors.white} />
-      </Pressable>
     </ScreenWrapper>
   );
 }
@@ -241,16 +243,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  topBar: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xxs,
+  },
+  topBarTitle: {
+    textAlign: 'left',
+    flexShrink: 1,
+  },
   backButton: {
-    position: 'absolute',
     width: 40,
     height: 40,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.18)',
-    zIndex: 50,
-    elevation: 50,
   },
   backPressed: {
     opacity: 0.6,

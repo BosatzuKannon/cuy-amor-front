@@ -12,8 +12,8 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppBackground } from '@/components/ui/app-background';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { api } from '@/lib/api';
@@ -118,6 +118,7 @@ function PackageCard({
 }
 
 export default function BuyCoinsScreen() {
+  const insets = useSafeAreaInsets();
   const session = useAuthStore((state) => state.session);
   const [packages, setPackages] = useState<CoinPackage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,10 +290,12 @@ export default function BuyCoinsScreen() {
 
   return (
     <ScreenWrapper background="transparent" style={styles.wrapper}>
-      <AppBackground />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 0 },
+        ]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <Pressable
@@ -379,7 +382,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    marginTop: 70,
     marginBottom: Spacing.lg,
   },
   backButton: {
