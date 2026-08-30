@@ -1,6 +1,7 @@
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { isAxiosError } from 'axios';
 import {
   Dimensions,
   FlatList,
@@ -17,12 +18,16 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AppText } from '@/components/ui/app-text';
 import { AppBackground } from '@/components/ui/app-background';
+import { UserActionsModal } from '@/components/user-actions-modal';
 import { ageFromBirthDate, formatDistance } from '@/lib/profile-format';
+import { toast } from '@/lib/toast';
 import { titleCase } from '@/lib/text';
+import { blockUser, reportUser } from '@/services/matches-service';
 import {
   type ExploreProfile,
   type RelationshipGoalCode,
 } from '@/services/profile-service';
+import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Spacing } from '@/theme/layout';
 
@@ -52,11 +57,27 @@ const GENDER_BORDER_COLORS: Record<string, string> = {
 
 const GENDER_BORDER_WIDTH = 3;
 
+function extractApiErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    const data: unknown = error.response?.data;
+    if (
+      data &&
+      typeof data === 'object' &&
+      'message' in data &&
+      typeof (data as { message?: unknown }).message === 'string'
+    ) {
+      return (data as { message: string }).message;
+    }
+  }
+  return fallback;
+}
+
 type PublicProfileModalProps = {
   visible: boolean;
   profile: ExploreProfile | null;
   onClose: () => void;
   showActions?: boolean;
+  onUserBlocked?: () => void;
   onPass?: () => void;
   onSuperLike?: () => void;
   onLike?: () => void;
@@ -66,6 +87,7 @@ type ProfileContentProps = {
   profile: ExploreProfile;
   onClose: () => void;
   showActions?: boolean;
+  onOpenActions: () => void;
   onPass?: () => void;
   onSuperLike?: () => void;
   onLike?: () => void;
@@ -75,6 +97,7 @@ function ProfileContent({
   profile,
   onClose,
   showActions = true,
+  onOpenActions,
   onPass,
   onSuperLike,
   onLike,
@@ -338,18 +361,36 @@ function ProfileContent({
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
 
-        <Pressable
-          onPress={onClose}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Cerrar perfil"
-          style={({ pressed }) => [
-            styles.closeButton,
-            { top: insets.top + Spacing.sm, right: Spacing.lg },
-            pressed && styles.closeButtonPressed,
-          ]}>
-          <AntDesign name="close" size={20} color={Colors.white} />
-        </Pressable>
+        <View
+          pointerEvents="box-none"
+          style={[styles.headerContainer, { top: insets.top + Spacing.sm }]}>
+          <Pressable
+            onPress={onClose}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar perfil"
+            style={({ pressed }) => [
+              styles.headerButton,
+              pressed && styles.headerButtonPressed,
+            ]}>
+            <AntDesign name="close" size={20} color={Colors.white} />
+          </Pressable>
+          <Pressable
+            onPress={onOpenActions}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Más opciones"
+            style={({ pressed }) => [
+              styles.headerButton,
+              pressed && styles.headerButtonPressed,
+            ]}>
+            <Ionicons
+              name="ellipsis-vertical"
+              size={20}
+              color={Colors.white}
+            />
+          </Pressable>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -360,31 +401,99 @@ export function PublicProfileModal({
   profile,
   onClose,
   showActions = true,
+  onUserBlocked,
   onPass,
   onSuperLike,
   onLike,
 }: PublicProfileModalProps) {
+  const [showUserActions, setShowUserActions] = useState(false);
+
+  const terminateWithUserBlocked = useCallback(() => {
+    onClose();
+    onUserBlocked?.();
+  }, [onClose, onUserBlocked]);
+
+  const handleBlockUser = useCallback(async () => {
+    const session = useAuthStore.getState().session;
+    if (!session || !profile) {
+      return;
+    }
+    setShowUserActions(false);
+    try {
+      await blockUser(session, profile.id);
+      toast.success(
+        'Usuario bloqueado',
+        'El perfil fue bloqueado correctamente.',
+      );
+      terminateWithUserBlocked();
+    } catch (error) {
+      console.error('[profile] block failed:', error);
+      toast.error(
+        extractApiErrorMessage(error, 'No se pudo bloquear al usuario'),
+        'Revisa tu conexión e inténtalo de nuevo.',
+      );
+    }
+  }, [profile, terminateWithUserBlocked]);
+
+  const handleReportUser = useCallback(
+    async (reason: string) => {
+      const session = useAuthStore.getState().session;
+      if (!session || !profile) {
+        return;
+      }
+      setShowUserActions(false);
+      try {
+        await reportUser(session, profile.id, reason);
+        toast.success(
+          'Reporte enviado',
+          'Gracias por ayudarnos a mantener Cuy Amor seguro.',
+        );
+        terminateWithUserBlocked();
+      } catch (error) {
+        console.error('[profile] report failed:', error);
+        toast.error(
+          extractApiErrorMessage(error, 'No se pudo enviar el reporte'),
+          'Revisa tu conexión e inténtalo de nuevo.',
+        );
+      }
+    },
+    [profile, terminateWithUserBlocked],
+  );
+
+  const profileName = profile ? titleCase(profile.firstName ?? '') : '';
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent>
-      {visible && profile ? (
-        <View style={styles.modalRoot}>
-          <AppBackground />
-          <ProfileContent
-            key={profile.id}
-            profile={profile}
-            onClose={onClose}
-            showActions={showActions}
-            onPass={onPass}
-            onSuperLike={onSuperLike}
-            onLike={onLike}
-          />
-        </View>
-      ) : null}
-    </Modal>
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        onRequestClose={onClose}
+        statusBarTranslucent>
+        {visible && profile ? (
+          <View style={styles.modalRoot}>
+            <AppBackground hideBrand />
+            <ProfileContent
+              key={profile.id}
+              profile={profile}
+              onClose={onClose}
+              showActions={showActions}
+              onOpenActions={() => setShowUserActions(true)}
+              onPass={onPass}
+              onSuperLike={onSuperLike}
+              onLike={onLike}
+            />
+          </View>
+        ) : null}
+      </Modal>
+
+      <UserActionsModal
+        visible={showUserActions}
+        onClose={() => setShowUserActions(false)}
+        userName={profileName || 'este usuario'}
+        onBlock={() => void handleBlockUser()}
+        onReport={(reason) => void handleReportUser(reason)}
+      />
+    </>
   );
 }
 
@@ -436,18 +545,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     width: 16,
   },
-  closeButton: {
+  headerContainer: {
     position: 'absolute',
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    zIndex: 50,
+    elevation: 50,
+  },
+  headerButton: {
     width: 36,
     height: 36,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)',
-    zIndex: 50,
-    elevation: 50,
   },
-  closeButtonPressed: {
+  headerButtonPressed: {
     opacity: 0.7,
     transform: [{ scale: 0.92 }],
   },

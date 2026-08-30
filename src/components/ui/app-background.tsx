@@ -32,12 +32,13 @@ const ROUTES_WITHOUT_BRAND = new Set([
 
 const ROUTE_PREFIXES_WITHOUT_BRAND = ['/chat/'];
 
-export function AppBackground() {
+export function AppBackground({ hideBrand = false }: { hideBrand?: boolean }) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const isLeyenda = useAuthStore((s) => s.profile?.isLeyenda ?? false);
 
-  const hideBrand =
+  const shouldHideBrand =
+    hideBrand ||
     ROUTES_WITHOUT_BRAND.has(pathname) ||
     ROUTE_PREFIXES_WITHOUT_BRAND.some((prefix) => pathname.startsWith(prefix));
 
@@ -54,7 +55,7 @@ export function AppBackground() {
       <FloatingShape color="rgba(139,69,19,0.28)" style={styles.shapeTwo} />
       <FloatingShape color="rgba(255,255,255,0.10)" style={styles.shapeThree} />
 
-      {!hideBrand ? (
+      {!shouldHideBrand ? (
         <View style={[styles.brandHeader, { paddingTop: insets.top + Spacing.sm }]}>
           <Image
             source={

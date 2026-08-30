@@ -1137,6 +1137,7 @@ export default function ChatScreen() {
         onClose={() => setIsProfileVisible(false)}
         profile={chatUser}
         showActions={false}
+        onUserBlocked={handleBack}
       />
 
       <UserActionsModal

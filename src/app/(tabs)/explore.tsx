@@ -451,6 +451,7 @@ export default function ExploreScreen() {
           visible={isProfileOpen && activeProfile !== null}
           profile={activeProfile}
           onClose={() => setIsProfileOpen(false)}
+          onUserBlocked={() => setProfiles((prev) => prev.slice(1))}
           onPass={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             void performAction('PASS');
