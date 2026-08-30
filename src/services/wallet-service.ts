@@ -15,7 +15,17 @@ export type PayoutRequestResponse = {
 
 export type WalletHistoryEntry = {
   id: string;
-  type: 'TRANSACTION' | 'PAYOUT_REQUEST';
+  type:
+    | 'COIN_RECHARGE'
+    | 'GIFT_SENT'
+    | 'PRIORITY_MESSAGE'
+    | 'BOOST_PURCHASE'
+    | 'REFERRAL_COMMISSION'
+    | 'WELCOME_GIFT'
+    | 'NINJA_ACTIVATED'
+    | 'ZUMBIDO_SENT'
+    | 'VIP_SUBSCRIPTION'
+    | 'PAYOUT_REQUEST';
   amountInCents: number;
   currencyType: 'CUY_COINS' | 'REAL_MONEY';
   description: string;

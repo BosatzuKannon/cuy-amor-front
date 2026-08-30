@@ -1,4 +1,5 @@
 import { AntDesign } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -37,26 +38,76 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'CUY_COINS', label: 'Cuy Coins' },
 ];
 
+const INCOME_TYPES = new Set([
+  'REFERRAL_COMMISSION',
+  'COIN_RECHARGE',
+  'WELCOME_GIFT',
+  'VIP_SUBSCRIPTION',
+]);
+const EXPENSE_TYPES = new Set([
+  'GIFT_SENT',
+  'PRIORITY_MESSAGE',
+  'BOOST_PURCHASE',
+  'NINJA_ACTIVATED',
+  'ZUMBIDO_SENT',
+  'PAYOUT_REQUEST',
+]);
+
+const INCOME_COLOR = '#4CAF50';
+const EXPENSE_COLOR = '#F44336';
+
+function getTransactionConfig(
+  type: string,
+): { kind: 'income' | 'expense'; color: string; sign: '+' | '-' } {
+  if (INCOME_TYPES.has(type)) {
+    return { kind: 'income', color: INCOME_COLOR, sign: '+' };
+  }
+  if (EXPENSE_TYPES.has(type)) {
+    return { kind: 'expense', color: EXPENSE_COLOR, sign: '-' };
+  }
+  return { kind: 'income', color: INCOME_COLOR, sign: '+' };
+}
+
 function getEntryIcon(entry: WalletHistoryEntry): React.ComponentProps<typeof AntDesign>['name'] {
   if (entry.type === 'PAYOUT_REQUEST') return 'export';
-  if (entry.description?.toLowerCase().includes('referid')) return 'team';
-  if (entry.description?.toLowerCase().includes('bienvenida')) return 'gift';
-  if (entry.description?.toLowerCase().includes('compra')) return 'shopping-cart';
-  if (entry.description?.toLowerCase().includes('retiro')) return 'export';
+  if (entry.type === 'REFERRAL_COMMISSION') return 'team';
+  if (entry.type === 'WELCOME_GIFT') return 'gift';
+  if (entry.type === 'COIN_RECHARGE') return 'shopping-cart';
+  if (entry.type === 'VIP_SUBSCRIPTION') return 'star';
+  if (entry.type === 'ZUMBIDO_SENT') return 'notification';
+  if (entry.type === 'NINJA_ACTIVATED') return 'eye';
   return 'wallet';
 }
 
-function HistoryItem({ entry }: { entry: WalletHistoryEntry }) {
-  const isNegative =
-    entry.type === 'TRANSACTION' &&
-    !entry.description?.toLowerCase().includes('bienvenida') &&
-    !entry.description?.toLowerCase().includes('referid') &&
-    entry.amountInCents < 0;
+const COIN_AMOUNT_REGEX = /\(([+-]?\d+)\s*monedas?\)/i;
 
-  const displayAmount =
-    entry.currencyType === 'CUY_COINS'
-      ? `${Math.abs(entry.amountInCents)} Cuy Coins`
-      : copFormatter.format(Math.abs(entry.amountInCents) / 100);
+function extractCoinAmount(description: string): number | null {
+  const match = COIN_AMOUNT_REGEX.exec(description);
+  if (!match) {
+    return null;
+  }
+  return Number(match[1]);
+}
+
+function HistoryItem({
+  entry,
+  isCoinTab,
+}: {
+  entry: WalletHistoryEntry;
+  isCoinTab: boolean;
+}) {
+  const config = getTransactionConfig(entry.type);
+
+  const coinAmount = isCoinTab
+    ? extractCoinAmount(entry.description ?? '')
+    : null;
+  const cleanDescription = (entry.description ?? '')
+    .replace(COIN_AMOUNT_REGEX, '')
+    .trim();
+
+  const displayAmount = isCoinTab
+    ? `${Math.abs(coinAmount ?? entry.amountInCents)}`
+    : copFormatter.format(Math.abs(entry.amountInCents) / 100);
 
   return (
     <View style={styles.historyItem}>
@@ -65,20 +116,29 @@ function HistoryItem({ entry }: { entry: WalletHistoryEntry }) {
       </View>
       <View style={styles.historyBody}>
         <AppText variant="bodyMedium" color={Colors.text} style={styles.historyDesc} numberOfLines={2}>
-          {entry.description || 'Transacción'}
+          {cleanDescription || 'Transacción'}
         </AppText>
         <AppText variant="caption" color={Colors.textMuted}>
           {dateFormatter.format(new Date(entry.createdAt))}
         </AppText>
       </View>
-      <AppText
-        variant="bodyMedium"
-        color={isNegative ? Colors.danger : Colors.success}
-        style={styles.historyAmount}
-        numberOfLines={1}
-        adjustsFontSizeToFit>
-        {isNegative ? '-' : '+'}{displayAmount}
-      </AppText>
+      <View style={styles.historyAmountRow}>
+        <AppText
+          variant="bodyMedium"
+          color={config.color}
+          style={styles.historyAmount}
+          numberOfLines={1}
+          adjustsFontSizeToFit>
+          {config.sign}{displayAmount}
+        </AppText>
+        {isCoinTab ? (
+          <Image
+            source={require('@/assets/images/coinn.png')}
+            style={styles.coinIcon}
+            contentFit="contain"
+          />
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -178,7 +238,9 @@ export default function WalletHistoryScreen() {
           <FlatList
             data={entries}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <HistoryItem entry={item} />}
+            renderItem={({ item }) => (
+              <HistoryItem entry={item} isCoinTab={activeTab === 'CUY_COINS'} />
+            )}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
@@ -306,6 +368,16 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontWeight: '700',
     flexShrink: 1,
+  },
+  historyAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: Spacing.xxs,
+  },
+  coinIcon: {
+    width: 16,
+    height: 16,
   },
   separator: {
     height: 1,
