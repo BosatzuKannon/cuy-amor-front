@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { GiftSelectorModal } from '@/components/gift-selector-modal';
+import { PublicProfileModal } from '@/components/public-profile-modal';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
@@ -45,6 +46,7 @@ import {
   type GenderCode,
   type VirtualGiftSummary,
 } from '@/services/matches-service';
+import { type ExploreProfile } from '@/services/profile-service';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useChatStore } from '@/store/useChatStore';
 import { selectGiftById, useGiftStore } from '@/store/useGiftStore';
@@ -435,6 +437,24 @@ export default function ChatScreen() {
   const [zumbidoCooldown, setZumbidoCooldown] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [sendingGiftId, setSendingGiftId] = useState<string | null>(null);
+  const [isProfileVisible, setIsProfileVisible] = useState(false);
+
+  const chatUser: ExploreProfile | null = useMemo(
+    () =>
+      otherUserId
+        ? {
+            id: otherUserId,
+            firstName: otherUserName || 'Match',
+            birthDate: null,
+            bio: null,
+            gender: otherUserGender,
+            photo: otherUserAvatarUrl
+              ? { id: 'chat-avatar', url: otherUserAvatarUrl }
+              : null,
+          }
+        : null,
+    [otherUserId, otherUserName, otherUserGender, otherUserAvatarUrl],
+  );
 
   const listRef = useRef<FlatList<ChatListItem>>(null);
   const atBottomRef = useRef(true);
@@ -860,41 +880,49 @@ export default function ChatScreen() {
             ]}>
             <AntDesign name="left" size={20} color={Colors.white} />
           </Pressable>
-          <LinearGradient
-            colors={avatarGradientFor(otherUserGender).colors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.headerAvatarWrap}>
-            <Avatar
-              url={otherUserAvatarUrl}
-              size={30}
-              style={styles.headerAvatar}
-            />
-          </LinearGradient>
-          <View style={styles.headerCenter}>
-            <AppText
-              variant="h3"
-              color={Colors.white}
-              numberOfLines={1}
-              style={styles.headerName}>
-              {otherUserName ? titleCase(otherUserName) : 'Conversación'}
-            </AppText>
-            {isRecipientOnline ? (
+          <Pressable
+            onPress={() => setIsProfileVisible(true)}
+            hitSlop={4}
+            style={({ pressed }) => [
+              styles.headerPressable,
+              pressed && styles.pressed,
+            ]}>
+            <LinearGradient
+              colors={avatarGradientFor(otherUserGender).colors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerAvatarWrap}>
+              <Avatar
+                url={otherUserAvatarUrl}
+                size={30}
+                style={styles.headerAvatar}
+              />
+            </LinearGradient>
+            <View style={styles.headerCenter}>
               <AppText
-                variant="caption"
-                color={Colors.online}
-                style={styles.onlineStatus}>
-                En línea
-              </AppText>
-            ) : otherUserLastSeen ? (
-              <AppText
-                variant="caption"
+                variant="h3"
                 color={Colors.white}
-                style={styles.onlineStatus}>
-                {formatLastSeen(otherUserLastSeen)}
+                numberOfLines={1}
+                style={styles.headerName}>
+                {otherUserName ? titleCase(otherUserName) : 'Conversación'}
               </AppText>
-            ) : null}
-          </View>
+              {isRecipientOnline ? (
+                <AppText
+                  variant="caption"
+                  color={Colors.online}
+                  style={styles.onlineStatus}>
+                  En línea
+                </AppText>
+              ) : otherUserLastSeen ? (
+                <AppText
+                  variant="caption"
+                  color={Colors.white}
+                  style={styles.onlineStatus}>
+                  {formatLastSeen(otherUserLastSeen)}
+                </AppText>
+              ) : null}
+            </View>
+          </Pressable>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -1036,6 +1064,13 @@ export default function ChatScreen() {
         sendingGiftId={sendingGiftId}
         onGiftPress={(gift) => void handleGiftPress(gift)}
       />
+
+      <PublicProfileModal
+        visible={isProfileVisible}
+        onClose={() => setIsProfileVisible(false)}
+        profile={chatUser}
+        showActions={false}
+      />
     </ScreenWrapper>
   );
 }
@@ -1078,6 +1113,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Spacing.sm,
+  },
+  headerPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerAvatar: {
     width: 30,

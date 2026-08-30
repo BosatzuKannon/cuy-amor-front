@@ -56,6 +56,7 @@ type PublicProfileModalProps = {
   visible: boolean;
   profile: ExploreProfile | null;
   onClose: () => void;
+  showActions?: boolean;
   onPass?: () => void;
   onSuperLike?: () => void;
   onLike?: () => void;
@@ -64,6 +65,7 @@ type PublicProfileModalProps = {
 type ProfileContentProps = {
   profile: ExploreProfile;
   onClose: () => void;
+  showActions?: boolean;
   onPass?: () => void;
   onSuperLike?: () => void;
   onLike?: () => void;
@@ -72,6 +74,7 @@ type ProfileContentProps = {
 function ProfileContent({
   profile,
   onClose,
+  showActions = true,
   onPass,
   onSuperLike,
   onLike,
@@ -285,50 +288,52 @@ function ProfileContent({
           </View>
 
           {/* TASK 5: Interaction Buttons - Exact Explore View Styling */}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              onPress={() => { onPass?.(); onClose?.(); }}
-              disabled={!onPass}
-              activeOpacity={0.8}
-              accessibilityLabel="Pass"
-              accessibilityRole="button"
-              style={[
-                styles.actionButton,
-                !onPass && styles.actionButtonDisabled,
-              ]}>
-              <AntDesign name="close" size={28} color="#9CA3AF" />
-            </TouchableOpacity>
+          {showActions && (
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                onPress={() => { onPass?.(); onClose?.(); }}
+                disabled={!onPass}
+                activeOpacity={0.8}
+                accessibilityLabel="Pass"
+                accessibilityRole="button"
+                style={[
+                  styles.actionButton,
+                  !onPass && styles.actionButtonDisabled,
+                ]}>
+                <AntDesign name="close" size={28} color="#9CA3AF" />
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => { onSuperLike?.(); onClose?.(); }}
-              disabled={!onSuperLike}
-              activeOpacity={0.8}
-              accessibilityLabel="Super Like"
-              accessibilityRole="button"
-              style={[
-                styles.superLikeButton,
-                !onSuperLike && styles.actionButtonDisabled,
-              ]}>
-              <Image
-                source={require('@/assets/images/cuyazoo.png')}
-                style={styles.superLikeIcon}
-                contentFit="contain"
-              />
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => { onSuperLike?.(); onClose?.(); }}
+                disabled={!onSuperLike}
+                activeOpacity={0.8}
+                accessibilityLabel="Super Like"
+                accessibilityRole="button"
+                style={[
+                  styles.superLikeButton,
+                  !onSuperLike && styles.actionButtonDisabled,
+                ]}>
+                <Image
+                  source={require('@/assets/images/cuyazoo.png')}
+                  style={styles.superLikeIcon}
+                  contentFit="contain"
+                />
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => { onLike?.(); onClose?.(); }}
-              disabled={!onLike}
-              activeOpacity={0.8}
-              accessibilityLabel="Like"
-              accessibilityRole="button"
-              style={[
-                styles.actionButton,
-                !onLike && styles.actionButtonDisabled,
-              ]}>
-              <AntDesign name="heart" size={28} color="#DC143C" />
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                onPress={() => { onLike?.(); onClose?.(); }}
+                disabled={!onLike}
+                activeOpacity={0.8}
+                accessibilityLabel="Like"
+                accessibilityRole="button"
+                style={[
+                  styles.actionButton,
+                  !onLike && styles.actionButtonDisabled,
+                ]}>
+                <AntDesign name="heart" size={28} color="#DC143C" />
+              </TouchableOpacity>
+            </View>
+          )}
 
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
@@ -354,6 +359,7 @@ export function PublicProfileModal({
   visible,
   profile,
   onClose,
+  showActions = true,
   onPass,
   onSuperLike,
   onLike,
@@ -371,6 +377,7 @@ export function PublicProfileModal({
             key={profile.id}
             profile={profile}
             onClose={onClose}
+            showActions={showActions}
             onPass={onPass}
             onSuperLike={onSuperLike}
             onLike={onLike}
