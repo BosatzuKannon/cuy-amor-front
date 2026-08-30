@@ -1,8 +1,9 @@
 import { AntDesign } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
@@ -25,18 +26,19 @@ export default function ReferralsScreen() {
   const referralCode = profile?.referralCode ?? null;
   const referralEarnings = profile?.referralEarnings ?? 0;
   const [copied, setCopied] = useState(false);
+  const shareMessage = `¡Crea una cuenta en Cuy Amor, conoce personas y gana dinero! Únete con mi código: ${referralCode}`;
 
   function handleCopyCode() {
     if (!referralCode) return;
-    try {
-      const Clipboard = require('expo-clipboard');
-      Clipboard.setStringAsync(referralCode);
-      setCopied(true);
-      toast.success('Copiado', 'Código de referido copiado al portapapeles');
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.info('Código', referralCode);
-    }
+    Clipboard.setStringAsync(shareMessage);
+    setCopied(true);
+    toast.success('¡Copiado!', 'El mensaje se ha copiado al portapapeles.');
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleShareCode() {
+    if (!referralCode) return;
+    await Share.share({ message: shareMessage });
   }
 
   return (
@@ -220,7 +222,7 @@ export default function ReferralsScreen() {
           iconLeft={
             <AntDesign name="share-alt" size={18} color={Colors.white} />
           }
-          onPress={handleCopyCode}
+          onPress={handleShareCode}
           disabled={!referralCode}
           style={styles.shareButton}
         />
