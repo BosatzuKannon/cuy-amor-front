@@ -13,6 +13,8 @@ jobs:
       EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_SUPABASE_BUCKET: ${{ secrets.EXPO_PUBLIC_SUPABASE_BUCKET }}
+      EXPO_PUBLIC_WOMPI_PUBLIC_KEY: ${{ secrets.EXPO_PUBLIC_WOMPI_PUBLIC_KEY }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
