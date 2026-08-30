@@ -93,6 +93,7 @@ export type ExploreProfile = {
   relationshipGoal?: RelationshipGoalCode | null;
   hobbies?: string[];
   distance?: number | null;
+  isLeyenda?: boolean;
   photo: { id: string; url: string } | null;
   photos?: { id: string; url: string }[];
 };

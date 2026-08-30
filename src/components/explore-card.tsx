@@ -95,6 +95,21 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
               {age !== null ? `, ${age}` : ''}
             </AppText>
             <View style={styles.pillsRow}>
+              {profile.isLeyenda ? (
+                <View style={styles.premiumChip}>
+                  <Image
+                    source={require('@/assets/images/iconvip.png')}
+                    style={styles.premiumChipIcon}
+                    contentFit="contain"
+                  />
+                  <AppText
+                    variant="tag"
+                    color="#FFD700"
+                    style={styles.premiumChipText}>
+                    Cuy Leyenda
+                  </AppText>
+                </View>
+              ) : null}
               <View style={styles.distancePill}>
                 <AntDesign name="environment" size={12} color={Colors.white} />
                 <AppText
@@ -225,6 +240,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     columnGap: 8,
+  },
+  premiumChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+    zIndex: 11,
+    elevation: 11,
+  },
+  premiumChipIcon: {
+    width: 18,
+    height: 18,
+  },
+  premiumChipText: {
+    color: '#FFD700',
+    fontWeight: '700',
+    fontSize: 12,
+    textTransform: 'uppercase',
   },
   distancePill: {
     flexDirection: 'row',

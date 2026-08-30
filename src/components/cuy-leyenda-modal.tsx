@@ -24,7 +24,7 @@ const LEYENDA_PRICE = '$24.999 COP';
 
 const PERKS = [
   { icon: 'thunderbolt' as const, text: '3 Zumbidos gratis al día' },
-  { icon: 'star' as const, text: '3 Cuyazos gratis al día' },
+  { icon: 'star' as const, text: '1 Cuyazo gratis al día' },
   { icon: 'safety' as const, text: 'Modo Cuy Ninja gratis y sin expiración' },
   { icon: 'search' as const, text: 'Perfil destacado en búsquedas' },
   { icon: 'gift' as const, text: '100 Cuy Coins de bienvenida' },
@@ -317,8 +317,8 @@ function ActiveContent({
             <AntDesign name="star" size={14} color={Colors.success} />
           </View>
           <View style={styles.perkBody}>
-            <AppText variant="bodyMedium" color={Colors.text}>3 Cuyazos gratis al día</AppText>
-            <AppText variant="caption" color={Colors.textMuted}>Quedan {cuyazosLeft} de 3</AppText>
+            <AppText variant="bodyMedium" color={Colors.text}>1 Cuyazo gratis al día</AppText>
+            <AppText variant="caption" color={Colors.textMuted}>Queda {cuyazosLeft} de 1</AppText>
           </View>
         </View>
 

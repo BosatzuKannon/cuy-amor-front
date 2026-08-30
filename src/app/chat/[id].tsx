@@ -416,6 +416,7 @@ export default function ChatScreen() {
     otherUserAvatarUrl?: string;
     otherUserGender?: GenderCode;
     otherUserLastSeen?: string;
+    otherUserIsLeyenda?: string;
   }>();
   const matchId = params.id;
   const otherUserId = params.otherUserId ?? null;
@@ -423,6 +424,7 @@ export default function ChatScreen() {
   const otherUserAvatarUrl = params.otherUserAvatarUrl || null;
   const otherUserGender = params.otherUserGender ?? 'OTHER';
   const otherUserLastSeen = params.otherUserLastSeen || null;
+  const otherUserIsLeyenda = (params.otherUserIsLeyenda ?? 'false') === 'true';
 
   const session = useAuthStore((state) => state.session);
   const supabaseToken = useAuthStore((state) => state.supabaseToken);
@@ -452,12 +454,13 @@ export default function ChatScreen() {
             birthDate: null,
             bio: null,
             gender: otherUserGender,
+            isLeyenda: otherUserIsLeyenda,
             photo: otherUserAvatarUrl
               ? { id: 'chat-avatar', url: otherUserAvatarUrl }
               : null,
           }
         : null,
-    [otherUserId, otherUserName, otherUserGender, otherUserAvatarUrl],
+    [otherUserId, otherUserName, otherUserGender, otherUserAvatarUrl, otherUserIsLeyenda],
   );
 
   const listRef = useRef<FlatList<ChatListItem>>(null);

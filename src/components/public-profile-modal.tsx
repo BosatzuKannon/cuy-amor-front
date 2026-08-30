@@ -228,6 +228,22 @@ function ProfileContent({
                 {age !== null ? `, ${age}` : ''}
               </AppText>
 
+              {profile.isLeyenda ? (
+                <View style={styles.premiumChip}>
+                  <Image
+                    source={require('@/assets/images/iconvip.png')}
+                    style={styles.premiumChipIcon}
+                    contentFit="contain"
+                  />
+                  <AppText
+                    variant="tag"
+                    color="#FFD700"
+                    style={styles.premiumChipText}>
+                    Cuy Leyenda
+                  </AppText>
+                </View>
+              ) : null}
+
               <View style={styles.locationRow}>
                 <AntDesign
                   name="environment"
@@ -579,6 +595,29 @@ const styles = StyleSheet.create({
   },
   nameText: {
     textAlign: 'left',
+  },
+  premiumChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+    marginTop: Spacing.sm,
+  },
+  premiumChipIcon: {
+    width: 18,
+    height: 18,
+  },
+  premiumChipText: {
+    color: '#FFD700',
+    fontWeight: '700',
+    fontSize: 12,
+    textTransform: 'uppercase',
   },
   locationRow: {
     flexDirection: 'row',

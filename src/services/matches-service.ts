@@ -12,6 +12,7 @@ export type ChatMatch = {
     firstName: string;
     gender: GenderCode | null;
     lastSeen: string | null;
+    isLeyenda?: boolean;
     avatarUrl: string | null;
   };
   lastMessage: {

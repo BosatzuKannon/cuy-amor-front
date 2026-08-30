@@ -34,6 +34,7 @@ function openChat(match: ChatMatch) {
       otherUserAvatarUrl: match.otherUser.avatarUrl ?? '',
       otherUserGender: match.otherUser.gender ?? 'OTHER',
       otherUserLastSeen: match.otherUser.lastSeen ?? '',
+      otherUserIsLeyenda: String(match.otherUser.isLeyenda ?? false),
     },
   });
 }
