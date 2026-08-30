@@ -68,9 +68,9 @@ export function AppBackground({ hideBrand = false }: { hideBrand?: boolean }) {
           />
           <AppText
             variant="tag"
-            color="rgba(255,255,255,0.9)"
-            style={styles.brandText}>
-            CUY AMOR
+            color={isLeyenda ? '#FFD700' : 'rgba(255,255,255,0.9)'}
+            style={[styles.brandText, isLeyenda ? styles.brandTextLeyenda : null]}>
+            {isLeyenda ? 'CUY LEYENDA' : 'CUY AMOR'}
           </AppText>
         </View>
       ) : null}
@@ -120,5 +120,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
     marginLeft: -6,
+  },
+  brandTextLeyenda: {
+    color: '#FFD700',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 });
