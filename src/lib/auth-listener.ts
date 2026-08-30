@@ -2,6 +2,11 @@ import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 
 import { api } from '@/lib/api';
+import {
+  captureReferralCode,
+  getPendingReferralCode,
+  consumePendingReferralCode,
+} from '@/lib/referral-capture';
 import { supabase } from '@/lib/supabase';
 import { getUserProfile } from '@/services/profile-service';
 import { useChatStore } from '@/store/useChatStore';
@@ -74,12 +79,15 @@ async function syncUserWithBackend(session: Session) {
     (identity) => identity.provider === 'google',
   );
 
+  const referralCode = getPendingReferralCode();
+
   const payload = {
     email: session.user.email,
     googleId:
       (metadata.provider_id as string | undefined) ?? googleIdentity?.id,
     firstName: firstName || undefined,
     lastName: rest.length ? rest.join(' ') : undefined,
+    ...(referralCode ? { referredBy: referralCode } : {}),
   };
 
   try {
@@ -88,6 +96,9 @@ async function syncUserWithBackend(session: Session) {
         Authorization: `Bearer ${session.access_token}`,
       },
     });
+    if (referralCode) {
+      consumePendingReferralCode();
+    }
     console.log('[auth-listener] sync success. Backend response:', JSON.stringify(response.data).slice(0, 300));
   } catch (error) {
     console.log('[auth-listener] sync error:', error);
@@ -130,12 +141,20 @@ export function initAuthListener() {
   Linking.getInitialURL().then((url) => {
     console.log('[auth-listener] getInitialURL:', url);
     if (url) {
+      const captured = captureReferralCode(url);
+      if (captured) {
+        console.log('[auth-listener] referral captured from initial URL:', captured);
+      }
       void handleAuthUrl(url);
     }
   });
 
   Linking.addEventListener('url', ({ url }) => {
     console.log('[auth-listener] deep link received:', url);
+    const captured = captureReferralCode(url);
+    if (captured) {
+      console.log('[auth-listener] referral captured from deep link:', captured);
+    }
     void handleAuthUrl(url);
   });
 

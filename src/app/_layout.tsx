@@ -333,6 +333,14 @@ export default function RootLayout() {
           </Stack.Protected>
 
           <Stack.Screen
+            name="invite"
+            options={{
+              presentation: 'transparentModal',
+              animation: 'none',
+            }}
+          />
+
+          <Stack.Screen
             name="terms"
             options={{
               presentation: 'card',
