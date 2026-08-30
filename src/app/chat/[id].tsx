@@ -1,4 +1,4 @@
-import { AntDesign, MaterialIcons } from '@expo/vector-icons';
+import { AntDesign, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -33,6 +33,7 @@ import { AppText } from '@/components/ui/app-text';
 import { GiftSelectorModal } from '@/components/gift-selector-modal';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { UserActionsModal } from '@/components/user-actions-modal';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { titleCase } from '@/lib/text';
@@ -42,6 +43,8 @@ import {
   sendMessage,
   sendGift,
   sendZumbido,
+  blockUser,
+  reportUser,
   type ChatMessage,
   type GenderCode,
   type VirtualGiftSummary,
@@ -437,6 +440,7 @@ export default function ChatScreen() {
   const [zumbidoCooldown, setZumbidoCooldown] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [sendingGiftId, setSendingGiftId] = useState<string | null>(null);
+  const [showUserActions, setShowUserActions] = useState(false);
   const [isProfileVisible, setIsProfileVisible] = useState(false);
 
   const chatUser: ExploreProfile | null = useMemo(
@@ -686,13 +690,58 @@ export default function ChatScreen() {
     [scrollToMessage],
   );
 
-  function handleBack() {
+  const handleBack = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/home');
     }
-  }
+  }, []);
+
+  const handleBlockUser = useCallback(async () => {
+    if (!session || !otherUserId) {
+      return;
+    }
+    setShowUserActions(false);
+    try {
+      await blockUser(session, otherUserId);
+      toast.success(
+        'Usuario bloqueado',
+        'Se eliminó el match y ya no podrán contactarse.',
+      );
+      handleBack();
+    } catch (error) {
+      console.error('[chat] block failed:', error);
+      toast.error(
+        extractApiErrorMessage(error, 'No se pudo bloquear al usuario'),
+        'Revisa tu conexión e inténtalo de nuevo.',
+      );
+    }
+  }, [session, otherUserId, handleBack]);
+
+  const handleReportUser = useCallback(
+    async (reason: string) => {
+      if (!session || !otherUserId) {
+        return;
+      }
+      setShowUserActions(false);
+      try {
+        await reportUser(session, otherUserId, reason);
+        toast.success(
+          'Reporte enviado',
+          'Gracias por ayudarnos a mantener Cuy Amor seguro.',
+        );
+        handleBack();
+      } catch (error) {
+        console.error('[chat] report failed:', error);
+        toast.error(
+          extractApiErrorMessage(error, 'No se pudo enviar el reporte'),
+          'Revisa tu conexión e inténtalo de nuevo.',
+        );
+      }
+    },
+    [session, otherUserId, handleBack],
+  );
 
   async function handleSend() {
     const text = input.trim();
@@ -923,7 +972,25 @@ export default function ChatScreen() {
               ) : null}
             </View>
           </Pressable>
-          <View style={styles.headerSpacer} />
+          {otherUserId ? (
+            <Pressable
+              onPress={() => setShowUserActions(true)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Más opciones"
+              style={({ pressed }) => [
+                styles.headerMenuButton,
+                pressed && styles.pressed,
+              ]}>
+              <Ionicons
+                name="ellipsis-vertical"
+                size={22}
+                color={Colors.white}
+              />
+            </Pressable>
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
         </View>
 
         <KeyboardAvoidingView
@@ -1071,6 +1138,14 @@ export default function ChatScreen() {
         profile={chatUser}
         showActions={false}
       />
+
+      <UserActionsModal
+        visible={showUserActions}
+        onClose={() => setShowUserActions(false)}
+        userName={otherUserName ? titleCase(otherUserName) : 'este usuario'}
+        onBlock={() => void handleBlockUser()}
+        onReport={(reason) => void handleReportUser(reason)}
+      />
     </ScreenWrapper>
   );
 }
@@ -1118,6 +1193,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  headerMenuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerAvatar: {
     width: 30,

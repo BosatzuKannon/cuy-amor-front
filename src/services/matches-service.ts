@@ -137,3 +137,45 @@ export async function sendGift(
 
   return data;
 }
+
+export type BlockUserResult = {
+  blocked: boolean;
+  blockedId: string;
+  matchSevered: boolean;
+};
+
+export async function blockUser(
+  session: Session,
+  blockedUserId: string,
+  reason?: string,
+): Promise<BlockUserResult> {
+  const { data } = await api.post<BlockUserResult>(
+    `/users/${blockedUserId}/block`,
+    reason ? { reason } : {},
+    { headers: authHeaders(session) },
+  );
+
+  return data;
+}
+
+export type ReportUserResult = {
+  reportId: string;
+  reported: boolean;
+  blocked: boolean;
+  matchSevered: boolean;
+};
+
+export async function reportUser(
+  session: Session,
+  reportedUserId: string,
+  reason: string,
+  details?: string,
+): Promise<ReportUserResult> {
+  const { data } = await api.post<ReportUserResult>(
+    `/users/${reportedUserId}/report`,
+    { reason, details },
+    { headers: authHeaders(session) },
+  );
+
+  return data;
+}
