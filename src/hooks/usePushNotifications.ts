@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import {
   useRootNavigationState,
@@ -34,8 +33,13 @@ function extractRoutePath(url: unknown): string {
   if (typeof url !== 'string' || url.trim().length === 0) {
     return '';
   }
-  const path = Linking.parse(url.trim()).path ?? '';
-  return path.startsWith('/') ? path : `/${path}`;
+
+  const value = url.trim();
+
+  let path = value.replace(/^cuyamor:\/\//i, '/');
+  path = path.replace(/^\/+/, '/');
+
+  return path;
 }
 
 export function usePushNotifications() {
