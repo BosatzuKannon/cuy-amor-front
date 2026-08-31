@@ -2,7 +2,11 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
-import { router, type Href } from 'expo-router';
+import {
+  useRootNavigationState,
+  useRouter,
+  type Href,
+} from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
@@ -26,67 +30,35 @@ async function registerDeviceWithBackend(pushToken: string) {
   );
 }
 
+function extractRoutePath(url: unknown): string {
+  if (typeof url !== 'string' || url.trim().length === 0) {
+    return '';
+  }
+  const path = Linking.parse(url.trim()).path ?? '';
+  return path.startsWith('/') ? path : `/${path}`;
+}
+
 export function usePushNotifications() {
   const session = useAuthStore((state) => state.session);
-  const coldStartHandled = useRef(false);
+  const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
+  const hasNavigatedColdStart = useRef(false);
 
   useEffect(() => {
     if (!session) {
       return;
     }
 
-    let cancelled = false;
-
     const responseSubscription =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        const url = response.notification.request.content.data?.url;
+        const normalizedPath = extractRoutePath(
+          response.notification.request.content.data?.url,
+        );
 
-        if (typeof url !== 'string' || url.trim().length === 0) {
-          return;
-        }
-
-        const path = Linking.parse(url.trim()).path ?? '';
-        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-
-        if (normalizedPath.startsWith('/chat/')) {
+        if (normalizedPath.length > 0) {
           router.push(normalizedPath as Href);
         }
       });
-
-    async function handleColdStart() {
-      if (coldStartHandled.current) {
-        return;
-      }
-      coldStartHandled.current = true;
-
-      try {
-        const lastResponse = await Notifications.getLastNotificationResponseAsync();
-        if (!lastResponse || cancelled) {
-          return;
-        }
-
-        const url =
-          lastResponse.notification.request.content.data?.url;
-
-        if (typeof url !== 'string' || url.trim().length === 0) {
-          return;
-        }
-
-        const path = Linking.parse(url.trim()).path ?? '';
-        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-
-        if (normalizedPath.startsWith('/chat/')) {
-          router.push(normalizedPath as Href);
-        }
-      } catch (error) {
-        console.warn(
-          '[usePushNotifications] cold start routing failed:',
-          error,
-        );
-      }
-    }
-
-    void handleColdStart();
 
     async function register() {
       try {
@@ -108,7 +80,7 @@ export function usePushNotifications() {
         const projectId = Constants.expoConfig?.extra?.eas?.projectId;
         const token = await Notifications.getExpoPushTokenAsync({ projectId });
 
-        if (cancelled || !token.data) {
+        if (!token.data) {
           return;
         }
 
@@ -125,8 +97,48 @@ export function usePushNotifications() {
     void register();
 
     return () => {
-      cancelled = true;
       responseSubscription.remove();
     };
-  }, [session]);
+  }, [session, router]);
+
+  useEffect(() => {
+    if (!rootNavigationState?.key) {
+      return;
+    }
+    if (hasNavigatedColdStart.current) {
+      return;
+    }
+    hasNavigatedColdStart.current = true;
+
+    let cancelled = false;
+
+    async function handleColdStart() {
+      try {
+        const lastResponse =
+          await Notifications.getLastNotificationResponseAsync();
+        if (!lastResponse || cancelled) {
+          return;
+        }
+
+        const normalizedPath = extractRoutePath(
+          lastResponse.notification.request.content.data?.url,
+        );
+
+        if (normalizedPath.length > 0) {
+          router.push(normalizedPath as Href);
+        }
+      } catch (error) {
+        console.warn(
+          '[usePushNotifications] cold start routing failed:',
+          error,
+        );
+      }
+    }
+
+    void handleColdStart();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rootNavigationState?.key, router]);
 }

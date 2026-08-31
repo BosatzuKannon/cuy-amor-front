@@ -2,9 +2,9 @@
   "expo": {
     "name": "Cuy Amor",
     "slug": "front-cuy-amor",
-    "version": "2.0.2",
+    "version": "2.0.3",
     "orientation": "portrait",
-    "icon": "./assets/images/icon3.png",
+    "icon": "./assets/images/icon2.png",
     "scheme": "cuyamor",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -13,14 +13,14 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E2725B",
-        "foregroundImage": "./assets/images/icon3.png",
-        "backgroundImage": "./assets/images/icon3.png",
-        "monochromeImage": "./assets/images/icon3.png"
+        "foregroundImage": "./assets/images/icon2.png",
+        "backgroundImage": "./assets/images/icon2.png",
+        "monochromeImage": "./assets/images/icon2.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.bosatzu.frontcuyamor",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 14
+      "versionCode": 15
     },
     "web": {
       "output": "static",
@@ -46,6 +46,13 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Cuy Amor usa tu ubicación para mostrarte perfiles cercanos en Nariño."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/iconnot.png",
+          "color": "#e2725b"
         }
       ],
       "@react-native-community/datetimepicker"
