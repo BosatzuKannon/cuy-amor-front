@@ -45,9 +45,10 @@ export function usePushNotifications() {
         }
 
         const path = Linking.parse(url.trim()).path ?? '';
+        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
 
-        if (path.startsWith('/chat/')) {
-          router.push(path as Href);
+        if (normalizedPath.startsWith('/chat/')) {
+          router.push(normalizedPath as Href);
         }
       });
 
