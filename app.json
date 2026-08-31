@@ -2,9 +2,9 @@
   "expo": {
     "name": "Cuy Amor",
     "slug": "front-cuy-amor",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "orientation": "portrait",
-    "icon": "./assets/images/icon1.png",
+    "icon": "./assets/images/icon3.png",
     "scheme": "cuyamor",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -13,14 +13,14 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E2725B",
-        "foregroundImage": "./assets/images/icon1.png",
-        "backgroundImage": "./assets/images/icon1.png",
-        "monochromeImage": "./assets/images/icon1.png"
+        "foregroundImage": "./assets/images/icon3.png",
+        "backgroundImage": "./assets/images/icon3.png",
+        "monochromeImage": "./assets/images/icon3.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.bosatzu.frontcuyamor",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 13
+      "versionCode": 14
     },
     "web": {
       "output": "static",

@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import { router, type Href } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { api } from '@/lib/api';
@@ -28,6 +28,7 @@ async function registerDeviceWithBackend(pushToken: string) {
 
 export function usePushNotifications() {
   const session = useAuthStore((state) => state.session);
+  const coldStartHandled = useRef(false);
 
   useEffect(() => {
     if (!session) {
@@ -51,6 +52,41 @@ export function usePushNotifications() {
           router.push(normalizedPath as Href);
         }
       });
+
+    async function handleColdStart() {
+      if (coldStartHandled.current) {
+        return;
+      }
+      coldStartHandled.current = true;
+
+      try {
+        const lastResponse = await Notifications.getLastNotificationResponseAsync();
+        if (!lastResponse || cancelled) {
+          return;
+        }
+
+        const url =
+          lastResponse.notification.request.content.data?.url;
+
+        if (typeof url !== 'string' || url.trim().length === 0) {
+          return;
+        }
+
+        const path = Linking.parse(url.trim()).path ?? '';
+        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+        if (normalizedPath.startsWith('/chat/')) {
+          router.push(normalizedPath as Href);
+        }
+      } catch (error) {
+        console.warn(
+          '[usePushNotifications] cold start routing failed:',
+          error,
+        );
+      }
+    }
+
+    void handleColdStart();
 
     async function register() {
       try {
