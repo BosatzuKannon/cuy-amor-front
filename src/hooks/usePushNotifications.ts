@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import {
+  usePathname,
   useRootNavigationState,
   useRouter,
   type Href,
@@ -29,23 +30,46 @@ async function registerDeviceWithBackend(pushToken: string) {
   );
 }
 
-function extractRoutePath(url: unknown): string {
+function resolveRoutePath(url: unknown): string {
   if (typeof url !== 'string' || url.trim().length === 0) {
     return '';
   }
 
-  const value = url.trim();
+  let path = url.trim().replace(/^cuyamor:\/\//i, '/').replace(/^\/+/, '/');
 
-  let path = value.replace(/^cuyamor:\/\//i, '/');
-  path = path.replace(/^\/+/, '/');
+  if (/^\/store($|\/)/i.test(path)) {
+    return '/explore';
+  }
+  if (/^\/wallet\/buy-coins($|\/)/i.test(path)) {
+    return '/wallet/buy-coins';
+  }
+  if (/^\/wallet\/payout($|\/)/i.test(path)) {
+    return '/wallet/payout';
+  }
+  if (/^\/wallet($|\/)/i.test(path)) {
+    return '/wallet/wallet-history';
+  }
+  if (/^\/matches($|\/)/i.test(path)) {
+    return '/matches';
+  }
+  if (/^\/chat\//i.test(path)) {
+    return '/chat' + path.slice('/chat'.length);
+  }
+  if (/^\/home($|\/)/i.test(path)) {
+    return '/home';
+  }
+  if (/^\/?$/.test(path)) {
+    return '/home';
+  }
 
-  return path;
+  return '';
 }
 
 export function usePushNotifications() {
   const session = useAuthStore((state) => state.session);
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
+  const pathname = usePathname();
   const hasNavigatedColdStart = useRef(false);
 
   useEffect(() => {
@@ -55,12 +79,12 @@ export function usePushNotifications() {
 
     const responseSubscription =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        const normalizedPath = extractRoutePath(
+        const resolvedPath = resolveRoutePath(
           response.notification.request.content.data?.url,
         );
 
-        if (normalizedPath.length > 0) {
-          router.push(normalizedPath as Href);
+        if (resolvedPath.length > 0) {
+          router.push(resolvedPath as Href);
         }
       });
 
@@ -126,13 +150,19 @@ export function usePushNotifications() {
             return;
           }
 
-          const normalizedPath = extractRoutePath(
+          const resolvedPath = resolveRoutePath(
             lastResponse.notification.request.content.data?.url,
           );
 
-          if (normalizedPath.length > 0) {
-            router.push(normalizedPath as Href);
+          if (resolvedPath.length === 0) {
+            return;
           }
+
+          if (pathname === resolvedPath) {
+            return;
+          }
+
+          router.push(resolvedPath as Href);
         } catch (error) {
           console.warn(
             '[usePushNotifications] cold start routing failed:',
@@ -148,5 +178,5 @@ export function usePushNotifications() {
         clearTimeout(timeoutId);
       }
     };
-  }, [rootNavigationState?.key, router]);
+  }, [rootNavigationState?.key, pathname, router]);
 }
