@@ -1,6 +1,8 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
+import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
+import { router, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
@@ -33,6 +35,21 @@ export function usePushNotifications() {
     }
 
     let cancelled = false;
+
+    const responseSubscription =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        const url = response.notification.request.content.data?.url;
+
+        if (typeof url !== 'string' || url.trim().length === 0) {
+          return;
+        }
+
+        const path = Linking.parse(url.trim()).path ?? '';
+
+        if (path.startsWith('/chat/')) {
+          router.push(path as Href);
+        }
+      });
 
     async function register() {
       try {
@@ -72,6 +89,7 @@ export function usePushNotifications() {
 
     return () => {
       cancelled = true;
+      responseSubscription.remove();
     };
   }, [session]);
 }
