@@ -26,13 +26,13 @@ import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { api } from '@/lib/api';
 import { uploadProfilePhoto } from '@/lib/photo-upload';
 import { toast } from '@/lib/toast';
+import type { UserProfileData } from '@/services/profile-service';
 import {
-  DEFAULT_COINS_BALANCE,
+  toUserProfile,
   useAuthStore,
   type GenderCode,
   type InterestedInCode,
   type RelationshipGoalCode,
-  type UserProfile,
 } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
@@ -447,46 +447,18 @@ export default function OnboardingScreen() {
     try {
       const headers = { Authorization: `Bearer ${session.access_token}` };
 
-      await api.patch('/users/profile', payload, { headers });
+      const { data: responseData } = await api.patch<UserProfileData>(
+        '/users/profile',
+        payload,
+        { headers },
+      );
 
-      const metadata = session.user.user_metadata ?? {};
-      const profile: UserProfile = {
+      const profile = toUserProfile(responseData, {
         id: session.user.id,
-        email: session.user.email ?? '',
-        firstName:
-          typeof metadata.full_name === 'string'
-            ? metadata.full_name.split(' ')[0] || null
-            : null,
-        lastName: null,
-        fullName:
-          typeof metadata.full_name === 'string'
-            ? metadata.full_name.trim()
-            : null,
-        birthDate: toIsoDate(birthDate),
-        gender,
-        interestedIn,
-        relationshipGoal,
-        hobbies,
-        bio: bio.trim() || null,
-        city: null,
-        latitude: location?.latitude ?? null,
-        longitude: location?.longitude ?? null,
-        preferences: null,
-        photos: photoUrl
-          ? [{ id: '', url: photoUrl, order: 0, isProfile: true }]
-          : [],
-        coinsBalance: DEFAULT_COINS_BALANCE,
-        cashBalanceInCents: 0,
-        referralCode: null,
-        referralEarnings: 0,
-        isNinja: false,
-        isLeyenda: false,
-        leyendaExpiresAt: null,
-        leyendaDaysLeft: 0,
-        dailyZumbidosLeft: 0,
-        dailyCuyazosLeft: 0,
-        ninjaDaysLeft: 0,
-      };
+        email: session.user.email ?? null,
+        coinsBalance: responseData.coinsBalance,
+        cashBalanceInCents: responseData.cashBalanceInCents,
+      });
 
       useAuthStore.getState().setProfile(profile);
       useAuthStore.getState().markProfileComplete();

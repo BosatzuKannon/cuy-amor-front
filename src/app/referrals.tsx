@@ -26,7 +26,12 @@ export default function ReferralsScreen() {
   const referralCode = profile?.referralCode ?? null;
   const referralEarnings = profile?.referralEarnings ?? 0;
   const [copied, setCopied] = useState(false);
-  const shareMessage = `¡Crea una cuenta en Cuy Amor, conoce personas y gana dinero! Únete con mi código: ${referralCode}`;
+  const inviteLink = referralCode
+    ? `cuyamor://invite?code=${referralCode}`
+    : '';
+  const shareMessage = referralCode
+    ? `¡Crea una cuenta en Cuy Amor, conoce personas y gana dinero! Únete con mi código: ${referralCode}. Ingresa desde este enlace: ${inviteLink}`
+    : '¡Crea una cuenta en Cuy Amor, conoce personas y gana dinero!';
 
   function handleCopyCode() {
     if (!referralCode) return;
@@ -38,7 +43,7 @@ export default function ReferralsScreen() {
 
   async function handleShareCode() {
     if (!referralCode) return;
-    await Share.share({ message: shareMessage });
+    await Share.share({ message: shareMessage, url: inviteLink });
   }
 
   return (

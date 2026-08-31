@@ -53,8 +53,6 @@ export type UserProfile = {
   ninjaDaysLeft: number;
 };
 
-export const DEFAULT_COINS_BALANCE = 150;
-
 export function toUserProfile(
   data: UserProfileData,
   options: {

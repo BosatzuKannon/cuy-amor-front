@@ -3,7 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
@@ -127,6 +127,46 @@ export default function BuyCoinsScreen() {
   const [checkoutLoadingId, setCheckoutLoadingId] = useState<string | null>(
     null,
   );
+  const refreshLockRef = useRef(false);
+
+  const refreshCoinsBalance = useCallback(async () => {
+    if (!session || refreshLockRef.current) {
+      return;
+    }
+
+    refreshLockRef.current = true;
+    try {
+      const { data: balance } = await api.get<{
+        coinsBalance?: number;
+      }>('/users/me/balance', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (
+        typeof balance.coinsBalance !== 'number' ||
+        !Number.isFinite(balance.coinsBalance)
+      ) {
+        return;
+      }
+
+      const currentBalance =
+        useAuthStore.getState().profile?.coinsBalance ?? 0;
+      if (balance.coinsBalance > currentBalance) {
+        useAuthStore.getState().setCoinsBalance(balance.coinsBalance);
+        toast.success(
+          '¡Compra Exitosa!',
+          'Tus Cuy Coins han sido acreditados a tu billetera.',
+        );
+        setCheckoutLoadingId(null);
+      }
+    } catch (error) {
+      console.error('[buy-coins] balance refresh failed:', error);
+    } finally {
+      refreshLockRef.current = false;
+    }
+  }, [session]);
 
   useEffect(() => {
     let active = true;
@@ -204,7 +244,10 @@ export default function BuyCoinsScreen() {
         '&redirect-url=' +
         encodeURIComponent(redirectUrl);
 
-      await WebBrowser.openAuthSessionAsync(wompiUrl, deepLink);
+      const result = await WebBrowser.openAuthSessionAsync(wompiUrl, deepLink);
+      if (result.type === 'success') {
+        await refreshCoinsBalance();
+      }
     } catch (error) {
       console.error('[buy-coins] checkout failed:', error);
       toast.error(
@@ -221,54 +264,30 @@ export default function BuyCoinsScreen() {
       return;
     }
 
-    let isRefreshing = false;
-
-    const subscription = AppState.addEventListener(
+    const appStateSubscription = AppState.addEventListener(
       'change',
-      async (nextAppState) => {
-        if (nextAppState !== 'active' || isRefreshing) {
-          return;
-        }
-
-        isRefreshing = true;
-        try {
-          const { data: balance } = await api.get<{
-            coinsBalance?: number;
-          }>('/users/me/balance', {
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          });
-
-          if (
-            typeof balance.coinsBalance !== 'number' ||
-            !Number.isFinite(balance.coinsBalance)
-          ) {
-            return;
-          }
-
-          const currentBalance =
-            useAuthStore.getState().profile?.coinsBalance ?? 0;
-          if (balance.coinsBalance > currentBalance) {
-            useAuthStore
-              .getState()
-              .setCoinsBalance(balance.coinsBalance);
-            toast.success(
-              '¡Compra Exitosa!',
-              'Tus Cuy Coins han sido acreditados a tu billetera.',
-            );
-            setCheckoutLoadingId(null);
-          }
-        } catch (error) {
-          console.error('[buy-coins] balance refresh failed:', error);
-        } finally {
-          isRefreshing = false;
+      (nextAppState) => {
+        if (nextAppState === 'active') {
+          void refreshCoinsBalance();
         }
       },
     );
 
-    return () => subscription.remove();
-  }, [session]);
+    const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+      const parsed = Linking.parse(url);
+      if (
+        parsed.path === '/wallet/buy-coins' ||
+        parsed.path?.endsWith('/wallet/buy-coins')
+      ) {
+        void refreshCoinsBalance();
+      }
+    });
+
+    return () => {
+      appStateSubscription.remove();
+      linkingSubscription.remove();
+    };
+  }, [session, refreshCoinsBalance]);
 
   function handleRetry() {
     void (async () => {
