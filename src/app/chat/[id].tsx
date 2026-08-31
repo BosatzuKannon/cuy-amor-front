@@ -443,7 +443,7 @@ export default function ChatScreen() {
   const resolvedOtherUserName =
     otherUserName || hydrated?.firstName || '';
   const resolvedOtherUserAvatarUrl =
-    otherUserAvatarUrl || hydrated?.avatarUrl ?? null;
+    (otherUserAvatarUrl || hydrated?.avatarUrl) ?? null;
   const resolvedOtherUserGender =
     (params.otherUserGender as GenderCode) || hydrated?.gender || 'OTHER';
   const resolvedOtherUserLastSeen =
