@@ -14,6 +14,7 @@ import Toast from 'react-native-toast-message';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AppBackground } from '@/components/ui/app-background';
 import { toastConfig } from '@/components/ui/app-toast';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { initAuthListener } from '@/lib/auth-listener';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
@@ -280,6 +281,8 @@ export default function RootLayout() {
 
   useGlobalMessageToasts({ onZumbidoReceived: triggerZumbido });
   useLastSeenTracker();
+
+  usePushNotifications();
 
   useEffect(() => {
     initAuthListener();
