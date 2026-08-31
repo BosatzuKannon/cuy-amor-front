@@ -426,6 +426,31 @@ export default function ChatScreen() {
   const otherUserLastSeen = params.otherUserLastSeen || null;
   const otherUserIsLeyenda = (params.otherUserIsLeyenda ?? 'false') === 'true';
 
+  const matches = useChatStore((state) => state.matches);
+
+  const hydrated = useMemo(() => {
+    if (!matchId) {
+      return null;
+    }
+    return matches.find((match) => match.id === matchId)?.otherUser ?? null;
+  }, [matches, matchId]);
+
+  const missingHeaderDetails =
+    !params.otherUserAvatarUrl && !params.otherUserName;
+  const [hydratingUser, setHydratingUser] = useState(false);
+
+  const resolvedOtherUserId = otherUserId ?? hydrated?.id ?? null;
+  const resolvedOtherUserName =
+    otherUserName || hydrated?.firstName || '';
+  const resolvedOtherUserAvatarUrl =
+    otherUserAvatarUrl || hydrated?.avatarUrl ?? null;
+  const resolvedOtherUserGender =
+    (params.otherUserGender as GenderCode) || hydrated?.gender || 'OTHER';
+  const resolvedOtherUserLastSeen =
+    otherUserLastSeen || hydrated?.lastSeen || null;
+  const resolvedOtherUserIsLeyenda =
+    otherUserIsLeyenda || Boolean(hydrated?.isLeyenda);
+
   const session = useAuthStore((state) => state.session);
   const supabaseToken = useAuthStore((state) => state.supabaseToken);
   const insets = useSafeAreaInsets();
@@ -447,20 +472,26 @@ export default function ChatScreen() {
 
   const chatUser: ExploreProfile | null = useMemo(
     () =>
-      otherUserId
+      resolvedOtherUserId
         ? {
-            id: otherUserId,
-            firstName: otherUserName || 'Match',
+            id: resolvedOtherUserId,
+            firstName: resolvedOtherUserName || 'Match',
             birthDate: null,
             bio: null,
-            gender: otherUserGender,
-            isLeyenda: otherUserIsLeyenda,
-            photo: otherUserAvatarUrl
-              ? { id: 'chat-avatar', url: otherUserAvatarUrl }
+            gender: resolvedOtherUserGender,
+            isLeyenda: resolvedOtherUserIsLeyenda,
+            photo: resolvedOtherUserAvatarUrl
+              ? { id: 'chat-avatar', url: resolvedOtherUserAvatarUrl }
               : null,
           }
         : null,
-    [otherUserId, otherUserName, otherUserGender, otherUserAvatarUrl, otherUserIsLeyenda],
+    [
+      resolvedOtherUserId,
+      resolvedOtherUserName,
+      resolvedOtherUserGender,
+      resolvedOtherUserAvatarUrl,
+      resolvedOtherUserIsLeyenda,
+    ],
   );
 
   const listRef = useRef<FlatList<ChatListItem>>(null);
@@ -580,7 +611,7 @@ export default function ChatScreen() {
   }, [session, matchId, supabaseToken]);
 
   useEffect(() => {
-    if (!session || !matchId || !otherUserId) {
+    if (!session || !matchId || !resolvedOtherUserId) {
       return;
     }
 
@@ -596,7 +627,7 @@ export default function ChatScreen() {
         { user_id?: string }[]
       >;
       const isOnline = Object.values(presenceState).some((presences) =>
-        presences.some((presence) => presence.user_id === otherUserId),
+        presences.some((presence) => presence.user_id === resolvedOtherUserId),
       );
       setIsRecipientOnline(isOnline);
     };
@@ -617,13 +648,31 @@ export default function ChatScreen() {
     return () => {
       supabase.removeChannel(presenceChannel);
     };
-  }, [session, matchId, otherUserId]);
+  }, [session, matchId, resolvedOtherUserId]);
 
   useEffect(() => {
     if (session && matchId && !loading) {
       void useChatStore.getState().fetchMatches();
     }
   }, [session, matchId, loading]);
+
+  useEffect(() => {
+    if (!missingHeaderDetails || !session || !matchId) {
+      setHydratingUser(false);
+      return;
+    }
+
+    if (!hydrated) {
+      setHydratingUser(true);
+      void useChatStore
+        .getState()
+        .fetchMatches()
+        .finally(() => setHydratingUser(false));
+      return;
+    }
+
+    setHydratingUser(false);
+  }, [missingHeaderDetails, hydrated, session, matchId]);
 
   const chatItems = useMemo(() => buildChatItems(messages), [messages]);
 
@@ -702,12 +751,12 @@ export default function ChatScreen() {
   }, []);
 
   const handleBlockUser = useCallback(async () => {
-    if (!session || !otherUserId) {
+    if (!session || !resolvedOtherUserId) {
       return;
     }
     setShowUserActions(false);
     try {
-      await blockUser(session, otherUserId);
+      await blockUser(session, resolvedOtherUserId);
       toast.success(
         'Usuario bloqueado',
         'Se eliminó el match y ya no podrán contactarse.',
@@ -720,16 +769,16 @@ export default function ChatScreen() {
         'Revisa tu conexión e inténtalo de nuevo.',
       );
     }
-  }, [session, otherUserId, handleBack]);
+  }, [session, resolvedOtherUserId, handleBack]);
 
   const handleReportUser = useCallback(
     async (reason: string) => {
-      if (!session || !otherUserId) {
+      if (!session || !resolvedOtherUserId) {
         return;
       }
       setShowUserActions(false);
       try {
-        await reportUser(session, otherUserId, reason);
+        await reportUser(session, resolvedOtherUserId, reason);
         toast.success(
           'Reporte enviado',
           'Gracias por ayudarnos a mantener Cuy Amor seguro.',
@@ -743,7 +792,7 @@ export default function ChatScreen() {
         );
       }
     },
-    [session, otherUserId, handleBack],
+    [session, resolvedOtherUserId, handleBack],
   );
 
   async function handleSend() {
@@ -894,8 +943,8 @@ export default function ChatScreen() {
           message={item.message}
           mine={mine}
           showAvatar={showAvatar}
-          otherUserName={otherUserName}
-          otherUserAvatarUrl={otherUserAvatarUrl}
+          otherUserName={resolvedOtherUserName}
+          otherUserAvatarUrl={resolvedOtherUserAvatarUrl}
           currentUserId={session?.user.id ?? ''}
           replyToMessage={replyToMessage}
           highlighted={highlightedId === item.message.id}
@@ -907,8 +956,8 @@ export default function ChatScreen() {
     [
       session,
       chatItems,
-      otherUserAvatarUrl,
-      otherUserName,
+      resolvedOtherUserAvatarUrl,
+      resolvedOtherUserName,
       messageById,
       highlightedId,
       handleJumpToReply,
@@ -940,42 +989,56 @@ export default function ChatScreen() {
               pressed && styles.pressed,
             ]}>
             <LinearGradient
-              colors={avatarGradientFor(otherUserGender).colors}
+              colors={avatarGradientFor(resolvedOtherUserGender).colors}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.headerAvatarWrap}>
               <Avatar
-                url={otherUserAvatarUrl}
+                url={resolvedOtherUserAvatarUrl}
                 size={30}
                 style={styles.headerAvatar}
               />
             </LinearGradient>
             <View style={styles.headerCenter}>
-              <AppText
-                variant="h3"
-                color={Colors.white}
-                numberOfLines={1}
-                style={styles.headerName}>
-                {otherUserName ? titleCase(otherUserName) : 'Conversación'}
-              </AppText>
-              {isRecipientOnline ? (
+              {hydratingUser ? (
+                <View style={styles.headerLoading}>
+                  <ActivityIndicator color={Colors.white} size="small" />
+                  <AppText
+                    variant="caption"
+                    color={Colors.white}
+                    style={styles.onlineStatus}>
+                    Cargando...
+                  </AppText>
+                </View>
+              ) : (
+                <>
                 <AppText
-                  variant="caption"
-                  color={Colors.online}
-                  style={styles.onlineStatus}>
-                  En línea
-                </AppText>
-              ) : otherUserLastSeen ? (
-                <AppText
-                  variant="caption"
+                  variant="h3"
                   color={Colors.white}
-                  style={styles.onlineStatus}>
-                  {formatLastSeen(otherUserLastSeen)}
+                  numberOfLines={1}
+                  style={styles.headerName}>
+                  {resolvedOtherUserName ? titleCase(resolvedOtherUserName) : 'Conversación'}
                 </AppText>
-              ) : null}
+                {isRecipientOnline ? (
+                  <AppText
+                    variant="caption"
+                    color={Colors.online}
+                    style={styles.onlineStatus}>
+                    En línea
+                  </AppText>
+                ) : resolvedOtherUserLastSeen ? (
+                  <AppText
+                    variant="caption"
+                    color={Colors.white}
+                    style={styles.onlineStatus}>
+                    {formatLastSeen(resolvedOtherUserLastSeen)}
+                  </AppText>
+                ) : null}
+                </>
+              )}
             </View>
           </Pressable>
-          {otherUserId ? (
+          {resolvedOtherUserId ? (
             <Pressable
               onPress={() => setShowUserActions(true)}
               hitSlop={12}
@@ -1013,8 +1076,8 @@ export default function ChatScreen() {
                 ¡Es un Match! 🎉
               </AppText>
               <AppText variant="caption" color={Colors.white} style={styles.emptyHint}>
-                {otherUserName
-                  ? `Saluda a ${titleCase(otherUserName)} para empezar la conversación.`
+                {resolvedOtherUserName
+                  ? `Saluda a ${titleCase(resolvedOtherUserName)} para empezar la conversación.`
                   : 'Saluda a tu match para empezar la conversación.'}
               </AppText>
             </View>
@@ -1060,8 +1123,8 @@ export default function ChatScreen() {
                 style={styles.replyName}>
                 {replyTo.senderId === session?.user.id
                   ? 'Tú'
-                  : otherUserName
-                    ? titleCase(otherUserName)
+                  : resolvedOtherUserName
+                    ? titleCase(resolvedOtherUserName)
                     : 'Respuesta'}
               </AppText>
               <AppText
@@ -1146,7 +1209,7 @@ export default function ChatScreen() {
       <UserActionsModal
         visible={showUserActions}
         onClose={() => setShowUserActions(false)}
-        userName={otherUserName ? titleCase(otherUserName) : 'este usuario'}
+        userName={resolvedOtherUserName ? titleCase(resolvedOtherUserName) : 'este usuario'}
         onBlock={() => void handleBlockUser()}
         onReport={(reason) => void handleReportUser(reason)}
       />
@@ -1213,6 +1276,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-start',
     paddingLeft: Spacing.sm,
+  },
+  headerLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   headerName: {
     textAlign: 'left',

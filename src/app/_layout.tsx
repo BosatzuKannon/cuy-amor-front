@@ -1,7 +1,9 @@
+import { Image } from 'expo-image';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   AppState,
   StyleSheet,
@@ -299,7 +301,16 @@ export default function RootLayout() {
   }, [ready]);
 
   if (!ready) {
-    return null;
+    return (
+      <View style={styles.loadingContainer}>
+        <Image
+          style={styles.loadingLogo}
+          source={require('@/assets/images/splash-icon1.png')}
+          contentFit="contain"
+        />
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
   }
 
   const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
@@ -409,5 +420,16 @@ const styles = StyleSheet.create({
   },
   shakeRoot: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+  },
+  loadingLogo: {
+    width: 128,
+    height: 128,
+    marginBottom: 24,
   },
 });

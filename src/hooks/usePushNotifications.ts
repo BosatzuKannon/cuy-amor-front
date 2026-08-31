@@ -115,34 +115,38 @@ export function usePushNotifications() {
     hasNavigatedColdStart.current = true;
 
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-    async function handleColdStart() {
-      try {
-        const lastResponse =
-          await Notifications.getLastNotificationResponseAsync();
-        if (!lastResponse || cancelled) {
-          return;
+    timeoutId = setTimeout(() => {
+      void (async () => {
+        try {
+          const lastResponse =
+            await Notifications.getLastNotificationResponseAsync();
+          if (!lastResponse || cancelled) {
+            return;
+          }
+
+          const normalizedPath = extractRoutePath(
+            lastResponse.notification.request.content.data?.url,
+          );
+
+          if (normalizedPath.length > 0) {
+            router.push(normalizedPath as Href);
+          }
+        } catch (error) {
+          console.warn(
+            '[usePushNotifications] cold start routing failed:',
+            error,
+          );
         }
-
-        const normalizedPath = extractRoutePath(
-          lastResponse.notification.request.content.data?.url,
-        );
-
-        if (normalizedPath.length > 0) {
-          router.push(normalizedPath as Href);
-        }
-      } catch (error) {
-        console.warn(
-          '[usePushNotifications] cold start routing failed:',
-          error,
-        );
-      }
-    }
-
-    void handleColdStart();
+      })();
+    }, 500);
 
     return () => {
       cancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [rootNavigationState?.key, router]);
 }
