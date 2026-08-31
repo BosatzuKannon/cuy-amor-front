@@ -10,19 +10,10 @@ import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { formatCoins, formatCop } from '@/lib/currency';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
-
-const copFormatter = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 0,
-});
-
-function formatCashBalance(cashBalanceCops: number): string {
-  return copFormatter.format(cashBalanceCops);
-}
 
 const AVATAR_GRADIENT_MALE = { colors: ['#40E0D0', '#007FFF'] as const };
 const AVATAR_GRADIENT_FEMALE = { colors: ['#e2725b', '#FFD700'] as const };
@@ -120,7 +111,7 @@ export default function ProfileScreen() {
     .map((p) => p.charAt(0).toUpperCase())
     .join('');
   const coinsBalance = profile?.coinsBalance ?? 0;
-  const cashBalance = formatCashBalance(profile?.cashBalanceInCents ?? 0);
+  const cashBalance = formatCop(profile?.cashBalanceInCents ?? 0);
   const isLeyenda = profile?.isLeyenda ?? false;
   const leyendaDaysLeft = profile?.leyendaDaysLeft ?? 0;
 
@@ -195,7 +186,7 @@ export default function ProfileScreen() {
               variant="caption"
               color={Colors.white}
               style={styles.coinsBadgeText}>
-              {coinsBalance} Cuy Coins
+              {formatCoins(coinsBalance)} Cuy Coins
             </AppText>
           </View>
         </View>

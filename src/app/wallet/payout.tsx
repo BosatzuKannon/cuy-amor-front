@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View }
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { formatCop } from '@/lib/currency';
 import { toast } from '@/lib/toast';
 import { requestPayout } from '@/services/wallet-service';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -13,17 +14,7 @@ import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const MIN_COP = 30000;
-
-const copFormatter = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 0,
-});
-
-function formatCop(cents: number): string {
-  return copFormatter.format(cents);
-}
+const MIN_CENTS = 3000000;
 
 export default function PayoutScreen() {
   const insets = useSafeAreaInsets();
@@ -38,7 +29,7 @@ export default function PayoutScreen() {
   const isValid =
     nequiNumber.trim().length >= 8 &&
     Number.isFinite(amountCents) &&
-    amountCents >= MIN_COP &&
+    amountCents >= MIN_CENTS &&
     amountCents <= cashBalance;
 
   function handleBack() {
@@ -151,7 +142,7 @@ export default function PayoutScreen() {
             </AppText>
           )}
 
-          {amountCents > 0 && amountCents < MIN_COP && (
+          {amountCents > 0 && amountCents < MIN_CENTS && (
             <AppText variant="caption" color={Colors.danger} style={styles.errorText}>
               El monto mínimo de retiro es $30.000 COP
             </AppText>

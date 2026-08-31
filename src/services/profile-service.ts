@@ -52,7 +52,7 @@ export type UserProfileData = {
   coinsBalance?: number;
   cashBalanceInCents?: number;
   referralCode?: string;
-  referralEarnings?: number;
+  referralEarningsInCents?: number;
   isNinja?: boolean;
   isLeyenda?: boolean;
   leyendaExpiresAt?: string | null;

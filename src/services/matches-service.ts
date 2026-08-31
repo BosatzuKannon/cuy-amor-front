@@ -47,7 +47,7 @@ export type VirtualGiftSummary = {
   name: string;
   iconUrl: string;
   coinCost: number;
-  cashValueCops: number;
+  cashValueInCents: number;
 };
 
 export type ChatMessage = {

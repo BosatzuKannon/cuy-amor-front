@@ -9,22 +9,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { formatCop } from '@/lib/currency';
 import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
 
-const copFormatter = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 0,
-});
-
 export default function ReferralsScreen() {
   const insets = useSafeAreaInsets();
   const profile = useAuthStore((s) => s.profile);
   const referralCode = profile?.referralCode ?? null;
-  const referralEarnings = profile?.referralEarnings ?? 0;
+  const referralEarnings = profile?.referralEarningsInCents ?? 0;
   const [copied, setCopied] = useState(false);
   const inviteLink = referralCode
     ? `cuyamor://invite?code=${referralCode}`
@@ -150,7 +145,7 @@ export default function ReferralsScreen() {
                 variant="h3"
                 color={Colors.text}
                 style={styles.earningsValue}>
-                {copFormatter.format(referralEarnings)}
+                {formatCop(referralEarnings)}
               </AppText>
             </View>
           </View>

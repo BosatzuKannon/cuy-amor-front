@@ -13,15 +13,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { formatCop } from '@/lib/currency';
 import { getWalletHistory, WalletHistoryEntry } from '@/services/wallet-service';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
-
-const copFormatter = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 0,
-});
 
 const dateFormatter = new Intl.DateTimeFormat('es-CO', {
   year: 'numeric',
@@ -109,7 +104,7 @@ function HistoryItem({
 
   const displayAmount = isCoinTab
     ? `${Math.abs(coinAmount ?? entry.amountInCents)}`
-    : copFormatter.format(Math.abs(entry.amountInCents) / 100);
+    : formatCop(Math.abs(entry.amountInCents));
 
   return (
     <View style={styles.historyItem}>

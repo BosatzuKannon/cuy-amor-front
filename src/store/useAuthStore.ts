@@ -43,7 +43,7 @@ export type UserProfile = {
   coinsBalance: number;
   cashBalanceInCents: number;
   referralCode: string | null;
-  referralEarnings: number;
+  referralEarningsInCents: number;
   isNinja: boolean;
   isLeyenda: boolean;
   leyendaExpiresAt: string | null;
@@ -89,7 +89,7 @@ export function toUserProfile(
     coinsBalance: options.coinsBalance ?? 0,
     cashBalanceInCents: options.cashBalanceInCents ?? 0,
     referralCode: data.referralCode ?? null,
-    referralEarnings: data.referralEarnings ?? 0,
+    referralEarningsInCents: data.referralEarningsInCents ?? 0,
     isNinja: data.isNinja ?? false,
     isLeyenda: data.isLeyenda ?? false,
     leyendaExpiresAt: data.leyendaExpiresAt ?? null,

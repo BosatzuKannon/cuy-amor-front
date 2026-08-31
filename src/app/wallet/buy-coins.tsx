@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { api } from '@/lib/api';
+import { formatCoins, formatCop } from '@/lib/currency';
 import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
@@ -36,16 +37,6 @@ type CheckoutResponse = {
   currency: string;
   signature: string;
 };
-
-const copFormatter = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 0,
-});
-
-function formatPrice(priceInCents: number): string {
-  return copFormatter.format(priceInCents / 100);
-}
 
 function PackageCard({
   coinPackage,
@@ -81,7 +72,7 @@ function PackageCard({
           variant="h2"
           color={Colors.text}
           style={styles.coinsAmount}>
-          {coinPackage.coinsAmount.toLocaleString('es-CO')}
+          {formatCoins(coinPackage.coinsAmount)}
         </AppText>
       </View>
 
@@ -90,7 +81,7 @@ function PackageCard({
       </AppText>
 
       <AppText variant="h3" color={Colors.primary} style={styles.packagePrice}>
-        {formatPrice(coinPackage.priceInCents)}
+        {formatCop(coinPackage.priceInCents)}
       </AppText>
 
       <Pressable

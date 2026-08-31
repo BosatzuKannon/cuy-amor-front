@@ -126,7 +126,7 @@ function useZumbidoShake() {
 }
 
 function creditReceiverForGift(gift: VirtualGiftSummary) {
-  const receiverCut = Math.floor(gift.cashValueCops * GIFT_RECEIVER_SHARE);
+  const receiverCut = Math.floor(gift.cashValueInCents * GIFT_RECEIVER_SHARE);
   const currentCash =
     useAuthStore.getState().profile?.cashBalanceInCents ?? 0;
   useAuthStore.getState().setCashBalance(currentCash + receiverCut);
