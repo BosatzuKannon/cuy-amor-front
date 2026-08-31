@@ -18,6 +18,7 @@ export type WalletHistoryEntry = {
   type:
     | 'COIN_RECHARGE'
     | 'GIFT_SENT'
+    | 'GIFT_RECEIVED'
     | 'PRIORITY_MESSAGE'
     | 'BOOST_PURCHASE'
     | 'REFERRAL_COMMISSION'

@@ -43,6 +43,7 @@ const INCOME_TYPES = new Set([
   'COIN_RECHARGE',
   'WELCOME_GIFT',
   'VIP_SUBSCRIPTION',
+  'GIFT_RECEIVED',
 ]);
 const EXPENSE_TYPES = new Set([
   'GIFT_SENT',
@@ -72,6 +73,7 @@ function getEntryIcon(entry: WalletHistoryEntry): React.ComponentProps<typeof An
   if (entry.type === 'PAYOUT_REQUEST') return 'export';
   if (entry.type === 'REFERRAL_COMMISSION') return 'team';
   if (entry.type === 'WELCOME_GIFT') return 'gift';
+  if (entry.type === 'GIFT_RECEIVED') return 'gift';
   if (entry.type === 'COIN_RECHARGE') return 'shopping-cart';
   if (entry.type === 'VIP_SUBSCRIPTION') return 'star';
   if (entry.type === 'ZUMBIDO_SENT') return 'notification';
