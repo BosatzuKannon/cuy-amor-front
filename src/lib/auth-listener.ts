@@ -69,24 +69,53 @@ async function syncUserWithBackend(session: Session) {
   console.log('[auth-listener] syncing user with backend, user id:', session.user.id);
 
   const metadata = session.user.user_metadata ?? {};
-  const fullName =
-    typeof metadata.full_name === 'string' ? metadata.full_name.trim() : '';
-  const name = typeof metadata.name === 'string' ? metadata.name.trim() : '';
-  const derivedName = fullName || name;
-  const [firstName = '', ...rest] = derivedName.split(' ');
 
   const googleIdentity = session.user.identities?.find(
     (identity) => identity.provider === 'google',
   );
+  const identityData = googleIdentity?.identity_data ?? {};
+
+  const fullName =
+    typeof metadata.full_name === 'string'
+      ? metadata.full_name.trim()
+      : typeof identityData.full_name === 'string'
+        ? identityData.full_name.trim()
+        : '';
+  const name =
+    typeof metadata.name === 'string'
+      ? metadata.name.trim()
+      : typeof identityData.name === 'string'
+        ? identityData.name.trim()
+        : '';
+  const derivedName = fullName || name;
+
+  const givenName =
+    typeof metadata.given_name === 'string'
+      ? metadata.given_name.trim()
+      : typeof identityData.given_name === 'string'
+        ? identityData.given_name.trim()
+        : '';
+  const familyName =
+    typeof metadata.family_name === 'string'
+      ? metadata.family_name.trim()
+      : typeof identityData.family_name === 'string'
+        ? identityData.family_name.trim()
+        : '';
+
+  const [firstNameFromFull = '', ...restFromFull] = derivedName.split(' ');
+  const firstName = givenName || firstNameFromFull;
+  const lastName = familyName || (restFromFull.length ? restFromFull.join(' ') : '');
 
   const referralCode = getPendingReferralCode();
 
   const payload = {
     email: session.user.email,
     googleId:
-      (metadata.provider_id as string | undefined) ?? googleIdentity?.id,
+      (metadata.provider_id as string | undefined) ??
+      googleIdentity?.id ??
+      null,
     firstName: firstName || undefined,
-    lastName: rest.length ? rest.join(' ') : undefined,
+    lastName: lastName || undefined,
     ...(referralCode ? { referredBy: referralCode } : {}),
   };
 
@@ -102,6 +131,7 @@ async function syncUserWithBackend(session: Session) {
     console.log('[auth-listener] sync success. Backend response:', JSON.stringify(response.data).slice(0, 300));
   } catch (error) {
     console.log('[auth-listener] sync error:', error);
+    throw error;
   }
 }
 
@@ -126,6 +156,17 @@ export async function loadUserProfile(session: Session) {
     console.log('[auth-listener] failed to load profile:', error);
     useAuthStore.getState().setProfile(null);
   }
+}
+
+let syncPromise: Promise<void> | null = null;
+
+export function ensureUserSynced(session: Session): Promise<void> {
+  if (!syncPromise) {
+    syncPromise = syncUserWithBackend(session).finally(() => {
+      syncPromise = null;
+    });
+  }
+  return syncPromise;
 }
 
 let listenerStarted = false;
@@ -165,7 +206,9 @@ export function initAuthListener() {
     store.setUser(session?.user ?? null);
 
     if (session) {
-      void syncUserWithBackend(session);
+      void ensureUserSynced(session).catch(() => {
+        console.log('[auth-listener] sync failed for user:', session.user.id);
+      });
       void loadUserProfile(session);
     }
 
@@ -181,7 +224,9 @@ export function initAuthListener() {
     store.setLoading(false);
 
     if (session) {
-      void syncUserWithBackend(session);
+      void ensureUserSynced(session).catch(() => {
+        console.log('[auth-listener] sync failed for user:', session.user.id);
+      });
       void loadUserProfile(session);
     }
   });

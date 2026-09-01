@@ -11,6 +11,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { api } from '@/lib/api';
+import { ensureUserSynced } from '@/lib/auth-listener';
 import { useAuthStore } from '@/store/useAuthStore';
 
 function getAuthHeaders() {
@@ -76,6 +77,7 @@ export function usePushNotifications() {
     if (!session) {
       return;
     }
+    const activeSession = session;
 
     const responseSubscription =
       Notifications.addNotificationResponseReceivedListener((response) => {
@@ -93,6 +95,8 @@ export function usePushNotifications() {
         if (!Device.isDevice) {
           return;
         }
+
+        await ensureUserSynced(activeSession);
 
         const { status: existingStatus } =
           await Notifications.getPermissionsAsync();
