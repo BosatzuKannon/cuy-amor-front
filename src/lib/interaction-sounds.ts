@@ -2,7 +2,7 @@ import { useAudioPlayer } from 'expo-audio';
 import { useCallback } from 'react';
 
 const LIKE_SOUND = require('@/assets/sounds/like.mp3');
-const CUYAZO_SOUND = require('@/assets/sounds/cuyazo.mp3');
+const CUYAZO_SOUND = require('@/assets/sounds/Cuyazo.mp3');
 const PASS_SOUND = require('../../assets/sounds/pass.mp3');
 const ZUMBIDO_SOUND = require('../../assets/sounds/zumbido.mp3');
 
