@@ -87,6 +87,7 @@ type ProfilePayload = {
   bio?: string;
   latitude?: number;
   longitude?: number;
+  invitedByCode?: string;
 };
 
 function toIsoDate(date: Date) {
@@ -175,6 +176,7 @@ export default function OnboardingScreen() {
   const [promptingLocation, setPromptingLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showWelcomeGift, setShowWelcomeGift] = useState(false);
+  const [invitedByCode, setInvitedByCode] = useState('');
 
   const locationRequested = useRef(false);
 
@@ -439,6 +441,9 @@ export default function OnboardingScreen() {
             latitude: Number(location.latitude.toFixed(6)),
             longitude: Number(location.longitude.toFixed(6)),
           }
+        : {}),
+      ...(invitedByCode.trim()
+        ? { invitedByCode: invitedByCode.trim() }
         : {}),
     };
 
@@ -777,13 +782,41 @@ export default function OnboardingScreen() {
               ) : null}
 
               {step === 6 ? (
-                <View style={styles.field}>
-                  <AppText
-                    variant="tag"
-                    color={Colors.textMuted}
-                    style={styles.label}>
-                    Tu ubicación
-                  </AppText>
+                <>
+                  <View style={styles.field}>
+                    <AppText
+                      variant="tag"
+                      color={Colors.textMuted}
+                      style={styles.label}>
+                      Código de referido
+                    </AppText>
+                    <TextInput
+                      value={invitedByCode}
+                      onChangeText={(text) =>
+                        setInvitedByCode(
+                          text.replace(/\s/g, '').toUpperCase().slice(0, 20),
+                        )
+                      }
+                      placeholder="Ingresa el código aquí"
+                      placeholderTextColor={Colors.textMuted}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      maxLength={20}
+                      style={styles.input}
+                    />
+                    <AppText variant="caption" color={Colors.textMuted}>
+                      Opcional · ¿Alguien te invitó a Cuy Amor? Escribe su
+                      código de referido aquí.
+                    </AppText>
+                  </View>
+
+                  <View style={styles.field}>
+                    <AppText
+                      variant="tag"
+                      color={Colors.textMuted}
+                      style={styles.label}>
+                      Tu ubicación
+                    </AppText>
 
                   <View style={styles.locationRow}>
                     {location ? (
@@ -840,7 +873,8 @@ export default function OnboardingScreen() {
                     Usamos tu ubicación solo para mostrarte perfiles cercanos.
                     Es opcional y puedes cambiarla cuando quieras.
                   </AppText>
-                </View>
+                  </View>
+                </>
               ) : null}
 
               <View style={styles.navRow}>

@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
@@ -114,6 +114,9 @@ export default function ProfileScreen() {
   const cashBalance = formatCop(profile?.cashBalanceInCents ?? 0);
   const isLeyenda = profile?.isLeyenda ?? false;
   const leyendaDaysLeft = profile?.leyendaDaysLeft ?? 0;
+  const referralCode = profile?.referralCode ?? null;
+
+  const SHARE_INVITE_MESSAGE = `¡Descubre gente nueva en Cuy Amor y gana dinero en el proceso! Descarga la app aquí: https://play.google.com/store/apps/details?id=com.bosatzu.frontcuyamor y usa mi código exclusivo: ${referralCode ?? 'XXXX-XXXX'} durante tu registro para ganar juntos.`;
 
   const profilePhoto =
     profile?.photos.find((p) => p.isProfile)?.url ??
@@ -139,6 +142,17 @@ export default function ProfileScreen() {
         setShowLogoutModal(false);
         router.replace('/');
       });
+  }
+
+  async function handleShareInvite() {
+    if (!referralCode) {
+      return;
+    }
+    try {
+      await Share.share({ message: SHARE_INVITE_MESSAGE });
+    } catch (err) {
+      console.log('[profile] share invite error:', err);
+    }
   }
 
   return (
@@ -190,6 +204,40 @@ export default function ProfileScreen() {
             </AppText>
           </View>
         </View>
+
+        <Pressable
+          onPress={handleShareInvite}
+          disabled={!referralCode}
+          style={({ pressed }) => [
+            styles.inviteCardWrap,
+            pressed && styles.inviteCardPressed,
+            !referralCode && styles.inviteCardDisabled,
+          ]}>
+          <LinearGradient
+            colors={['#40E0D0', '#007FFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.inviteCard}>
+            <View style={styles.inviteIconWrap}>
+              <AntDesign name="share-alt" size={20} color={Colors.white} />
+            </View>
+            <View style={styles.inviteBody}>
+              <AppText
+                variant="bodyMedium"
+                color={Colors.white}
+                style={styles.inviteTitle}>
+                Invita amigos y gana dinero
+              </AppText>
+              <AppText
+                variant="caption"
+                color="rgba(255,255,255,0.85)"
+                style={styles.inviteSubtitle}>
+                Comparte tu código exclusivo: {referralCode ?? '---'}
+              </AppText>
+            </View>
+            <AntDesign name="right" size={16} color="rgba(255,255,255,0.85)" />
+          </LinearGradient>
+        </Pressable>
 
         <View style={styles.card}>
           <AppText
@@ -411,6 +459,45 @@ const styles = StyleSheet.create({
   },
   headerName: {
     textAlign: 'center',
+  },
+  inviteCardWrap: {
+    width: '100%',
+    marginBottom: Spacing.lg,
+    borderRadius: Radius.xl,
+    ...Shadows.card,
+  },
+  inviteCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+  },
+  inviteCardPressed: {
+    opacity: 0.85,
+  },
+  inviteCardDisabled: {
+    opacity: 0.55,
+  },
+  inviteIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  inviteBody: {
+    flex: 1,
+    gap: Spacing.xxs,
+  },
+  inviteTitle: {
+    textAlign: 'left',
+  },
+  inviteSubtitle: {
+    textAlign: 'left',
+    lineHeight: 18,
   },
   coinsBadge: {
     alignSelf: 'center',
