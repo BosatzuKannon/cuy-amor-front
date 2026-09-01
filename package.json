@@ -14,6 +14,7 @@
     "axios": "^1.19.0",
     "expo": "~57.0.13",
     "expo-application": "~57.0.2",
+    "expo-audio": "~57.0.4",
     "expo-auth-session": "~57.0.7",
     "expo-blob": "^57.0.1",
     "expo-build-properties": "~57.0.15",

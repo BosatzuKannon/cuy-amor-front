@@ -18,6 +18,7 @@ import { PublicProfileModal } from '@/components/public-profile-modal';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { api } from '@/lib/api';
+import { useInteractionSounds } from '@/lib/interaction-sounds';
 import { toast } from '@/lib/toast';
 import {
   getExploreFeed,
@@ -96,6 +97,8 @@ function ExploreSkeleton() {
 export default function ExploreScreen() {
   const session = useAuthStore((state) => state.session);
   const profile = useAuthStore((state) => state.profile);
+
+  const { playLike, playCuyazo, playPass } = useInteractionSounds();
 
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<ExploreProfile[]>([]);
@@ -325,7 +328,10 @@ export default function ExploreScreen() {
 
         <View style={styles.actionsRow}>
           <Pressable
-            onPress={() => void performAction('PASS')}
+            onPress={() => {
+              playPass();
+              void performAction('PASS');
+            }}
             disabled={noProfiles}
             hitSlop={8}
             style={({ pressed }) => [
@@ -339,7 +345,11 @@ export default function ExploreScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => void performAction('SUPER_LIKE')}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              playCuyazo();
+              void performAction('SUPER_LIKE');
+            }}
             disabled={noProfiles}
             hitSlop={8}
             style={({ pressed }) => [
@@ -362,7 +372,11 @@ export default function ExploreScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => void performAction('LIKE')}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              playLike();
+              void performAction('LIKE');
+            }}
             disabled={noProfiles}
             hitSlop={8}
             style={({ pressed }) => [
@@ -453,15 +467,17 @@ export default function ExploreScreen() {
           onClose={() => setIsProfileOpen(false)}
           onUserBlocked={() => setProfiles((prev) => prev.slice(1))}
           onPass={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            playPass();
             void performAction('PASS');
           }}
           onSuperLike={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            playCuyazo();
             void performAction('SUPER_LIKE');
           }}
           onLike={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            playLike();
             void performAction('LIKE');
           }}
         />

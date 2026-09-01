@@ -1,4 +1,5 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -19,6 +20,7 @@ import { toastConfig } from '@/components/ui/app-toast';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useUpdateGate } from '@/hooks/useUpdateGate';
 import { initAuthListener } from '@/lib/auth-listener';
+import { useInteractionSounds } from '@/lib/interaction-sounds';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { updateLastSeen, type VirtualGiftSummary } from '@/services/matches-service';
@@ -289,8 +291,15 @@ function GatedApp({
   const profileComplete = useAuthStore((state) => state.profileComplete);
 
   const { shakeAnimation, triggerZumbido } = useZumbidoShake();
+  const { playZumbido } = useInteractionSounds();
 
-  useGlobalMessageToasts({ onZumbidoReceived: triggerZumbido });
+  useGlobalMessageToasts({
+    onZumbidoReceived: useCallback(() => {
+      playZumbido();
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      triggerZumbido();
+    }, [playZumbido, triggerZumbido]),
+  });
   useLastSeenTracker();
 
   usePushNotifications();
