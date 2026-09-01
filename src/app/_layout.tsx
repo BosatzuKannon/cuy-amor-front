@@ -12,9 +12,12 @@ import {
 import Toast from 'react-native-toast-message';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { HardUpdateModal } from '@/components/hard-update-modal';
+import { SoftUpdateBanner } from '@/components/soft-update-banner';
 import { AppBackground } from '@/components/ui/app-background';
 import { toastConfig } from '@/components/ui/app-toast';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useUpdateGate } from '@/hooks/useUpdateGate';
 import { initAuthListener } from '@/lib/auth-listener';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
@@ -269,7 +272,15 @@ function useLastSeenTracker() {
   }, [session]);
 }
 
-export default function RootLayout() {
+function GatedApp({
+  softUpdateUrl,
+  onDismissSoftUpdate,
+  softUpdatePending,
+}: {
+  softUpdateUrl: string;
+  onDismissSoftUpdate: () => void;
+  softUpdatePending: boolean;
+}) {
   const colorScheme = useColorScheme();
   const [fontsLoaded, fontError] = useAppFonts();
   const session = useAuthStore((state) => state.session);
@@ -394,11 +405,51 @@ export default function RootLayout() {
         </Stack>
         </Animated.View>
 
+        {softUpdatePending && (
+          <SoftUpdateBanner
+            updateUrl={softUpdateUrl}
+            onDismiss={onDismissSoftUpdate}
+          />
+        )}
+
         <AnimatedSplashOverlay />
 
         <Toast config={toastConfig} topOffset={56} visibilityTime={3400} />
       </View>
     </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  const {
+    ready: gateReady,
+    status,
+    config,
+    softUpdatePending,
+    dismissSoftUpdate,
+  } = useUpdateGate();
+
+  const updateUrl =
+    config?.updateUrl || 'market://details?id=com.bosatzu.frontcuyamor';
+
+  if (!gateReady) {
+    return <View style={styles.root} />;
+  }
+
+  if (status === 'hardBlocked') {
+    return (
+      <View style={styles.root}>
+        <HardUpdateModal />
+      </View>
+    );
+  }
+
+  return (
+    <GatedApp
+      softUpdateUrl={updateUrl}
+      softUpdatePending={softUpdatePending}
+      onDismissSoftUpdate={dismissSoftUpdate}
+    />
   );
 }
 
