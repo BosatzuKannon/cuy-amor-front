@@ -49,7 +49,10 @@ import {
   type GenderCode,
   type VirtualGiftSummary,
 } from '@/services/matches-service';
-import { type ExploreProfile } from '@/services/profile-service';
+import {
+  getPublicProfile,
+  type ExploreProfile,
+} from '@/services/profile-service';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useChatStore } from '@/store/useChatStore';
 import { selectGiftById, useGiftStore } from '@/store/useGiftStore';
@@ -469,6 +472,8 @@ export default function ChatScreen() {
   const [sendingGiftId, setSendingGiftId] = useState<string | null>(null);
   const [showUserActions, setShowUserActions] = useState(false);
   const [isProfileVisible, setIsProfileVisible] = useState(false);
+  const [fullProfile, setFullProfile] = useState<ExploreProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const chatUser: ExploreProfile | null = useMemo(
     () =>
@@ -493,6 +498,20 @@ export default function ChatScreen() {
       resolvedOtherUserIsLeyenda,
     ],
   );
+
+  const openProfile = useCallback(() => {
+    setIsProfileVisible(true);
+    if (!resolvedOtherUserId || !session) {
+      return;
+    }
+    setProfileLoading(true);
+    getPublicProfile(resolvedOtherUserId, session)
+      .then((profile) => setFullProfile(profile))
+      .catch(() => {
+        setFullProfile(null);
+      })
+      .finally(() => setProfileLoading(false));
+  }, [resolvedOtherUserId, session]);
 
   const listRef = useRef<FlatList<ChatListItem>>(null);
   const atBottomRef = useRef(true);
@@ -982,7 +1001,7 @@ export default function ChatScreen() {
             <AntDesign name="left" size={20} color={Colors.white} />
           </Pressable>
           <Pressable
-            onPress={() => setIsProfileVisible(true)}
+            onPress={openProfile}
             hitSlop={4}
             style={({ pressed }) => [
               styles.headerPressable,
@@ -1200,8 +1219,12 @@ export default function ChatScreen() {
 
       <PublicProfileModal
         visible={isProfileVisible}
-        onClose={() => setIsProfileVisible(false)}
-        profile={chatUser}
+        loading={profileLoading}
+        onClose={() => {
+          setIsProfileVisible(false);
+          setProfileLoading(false);
+        }}
+        profile={fullProfile ?? chatUser}
         showActions={false}
         onUserBlocked={handleBack}
       />

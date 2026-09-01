@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { useCallback, useMemo, useState } from 'react';
 import { isAxiosError } from 'axios';
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Modal,
@@ -25,6 +26,7 @@ import { titleCase } from '@/lib/text';
 import { blockUser, reportUser } from '@/services/matches-service';
 import {
   type ExploreProfile,
+  type InterestedInCode,
   type RelationshipGoalCode,
 } from '@/services/profile-service';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -47,6 +49,12 @@ const RELATIONSHIP_GOAL_LABELS: Record<RelationshipGoalCode, string> = {
   CHAT: 'Solo conversar',
   LET_IT_FLOW: 'Dejar que fluya',
   LIGHT_CASUAL: 'Algo casual',
+};
+
+const INTERESTED_IN_LABELS: Record<InterestedInCode, string> = {
+  WOMEN: 'Mujeres',
+  MEN: 'Hombres',
+  BOTH: 'Ambos',
 };
 
 const GENDER_BORDER_COLORS: Record<string, string> = {
@@ -75,6 +83,7 @@ function extractApiErrorMessage(error: unknown, fallback: string): string {
 type PublicProfileModalProps = {
   visible: boolean;
   profile: ExploreProfile | null;
+  loading?: boolean;
   onClose: () => void;
   showActions?: boolean;
   onUserBlocked?: () => void;
@@ -126,6 +135,9 @@ function ProfileContent({
     : 'Cerca de ti';
   const goalLabel = profile.relationshipGoal
     ? RELATIONSHIP_GOAL_LABELS[profile.relationshipGoal]
+    : null;
+  const interestedInLabel = profile.interestedIn
+    ? INTERESTED_IN_LABELS[profile.interestedIn]
     : null;
   const genderBorderColor = profile.gender
     ? GENDER_BORDER_COLORS[profile.gender]
@@ -281,6 +293,23 @@ function ProfileContent({
                   </AppText>
                 </View>
               ) : null}
+
+              {interestedInLabel ? (
+                <View style={styles.goalRow}>
+                  <AppText
+                    variant="tag"
+                    color={BRAND_SECONDARY}
+                    style={styles.sectionLabel}>
+                    INTERESADO EN
+                  </AppText>
+                  <AppText
+                    variant="body"
+                    color={TEXT_DARK}
+                    style={styles.goalText}>
+                    {interestedInLabel}
+                  </AppText>
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -415,6 +444,7 @@ function ProfileContent({
 export function PublicProfileModal({
   visible,
   profile,
+  loading = false,
   onClose,
   showActions = true,
   onUserBlocked,
@@ -499,6 +529,13 @@ export function PublicProfileModal({
               onLike={onLike}
             />
           </View>
+        ) : visible && loading ? (
+          <View style={styles.modalRoot}>
+            <AppBackground hideBrand />
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={BRAND_PRIMARY} />
+            </View>
+          </View>
         ) : null}
       </Modal>
 
@@ -516,6 +553,11 @@ export function PublicProfileModal({
 const styles = StyleSheet.create({
   modalRoot: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   safeArea: {
     flex: 1,

@@ -91,6 +91,7 @@ export type ExploreProfile = {
   gender: GenderCode | null;
   city?: string | null;
   relationshipGoal?: RelationshipGoalCode | null;
+  interestedIn?: InterestedInCode | null;
   hobbies?: string[];
   distance?: number | null;
   isLeyenda?: boolean;
@@ -133,6 +134,20 @@ export async function getExploreFeed(
   const { data } = await api.get<ExploreProfile[]>('/explore', {
     headers: authHeaders(session),
   });
+
+  return data;
+}
+
+export async function getPublicProfile(
+  userId: string,
+  session: Session,
+): Promise<ExploreProfile> {
+  const { data } = await api.get<ExploreProfile>(
+    `/users/${userId}/public-profile`,
+    {
+      headers: authHeaders(session),
+    },
+  );
 
   return data;
 }

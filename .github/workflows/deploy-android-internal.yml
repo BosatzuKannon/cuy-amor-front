@@ -76,8 +76,16 @@ jobs:
           fastlane run upload_to_play_store \
             track:internal \
             aab:android/app/build/outputs/bundle/release/app-release.aab \
+            mapping:android/app/build/outputs/mapping/release/mapping.txt \
             json_key:google-play.json \
             package_name:com.bosatzu.frontcuyamor \
             skip_upload_metadata:true \
             skip_upload_images:true \
             skip_upload_screenshots:true
+
+      - name: Save ProGuard Mapping Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proguard-mapping
+          path: android/app/build/outputs/mapping/release/mapping.txt
+          retention-days: 30
