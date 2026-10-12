@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { HighlyRequestedBadge } from '@/components/highly-requested-badge';
 import { AppText } from '@/components/ui/app-text';
 import { ageFromBirthDate, formatDistance } from '@/lib/profile-format';
 import { titleCase } from '@/lib/text';
@@ -87,6 +88,12 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
           />
 
           <View style={styles.overlayContent}>
+            {profile.isHighlyRequested ? (
+              <HighlyRequestedBadge
+                compact
+                style={styles.highlyRequestedBadge}
+              />
+            ) : null}
             <AppText
               variant="h2"
               color={Colors.white}
@@ -234,6 +241,9 @@ const styles = StyleSheet.create({
   },
   overlayName: {
     textAlign: 'left',
+  },
+  highlyRequestedBadge: {
+    marginBottom: Spacing.xxs,
   },
   pillsRow: {
     flexDirection: 'row',

@@ -95,6 +95,7 @@ export type ExploreProfile = {
   hobbies?: string[];
   distance?: number | null;
   isLeyenda?: boolean;
+  isHighlyRequested?: boolean;
   photo: { id: string; url: string } | null;
   photos?: { id: string; url: string }[];
 };

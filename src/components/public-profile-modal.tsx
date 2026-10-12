@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { HighlyRequestedBadge } from '@/components/highly-requested-badge';
 import { AppText } from '@/components/ui/app-text';
 import { AppBackground } from '@/components/ui/app-background';
 import { UserActionsModal } from '@/components/user-actions-modal';
@@ -239,6 +240,10 @@ function ProfileContent({
                 {name}
                 {age !== null ? `, ${age}` : ''}
               </AppText>
+
+              {profile.isHighlyRequested ? (
+                <HighlyRequestedBadge style={styles.highlyRequestedBadge} />
+              ) : null}
 
               {profile.isLeyenda ? (
                 <View style={styles.premiumChip}>
@@ -637,6 +642,9 @@ const styles = StyleSheet.create({
   },
   nameText: {
     textAlign: 'left',
+  },
+  highlyRequestedBadge: {
+    marginTop: Spacing.sm,
   },
   premiumChip: {
     flexDirection: 'row',
