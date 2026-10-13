@@ -1,5 +1,60 @@
+import * as Application from 'expo-application';
+import { Platform } from 'react-native';
+
+const MAX_REFERRAL_CODE_LENGTH = 20;
+
 let pendingReferralCode: string | null = null;
 let lastCapturedUrl = '';
+let installReferrerPromise: Promise<string | null> | null = null;
+
+function normalizeReferralCode(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const decoded = decodeURIComponent(value).trim();
+  return decoded.length > 0 && decoded.length <= MAX_REFERRAL_CODE_LENGTH
+    ? decoded
+    : null;
+}
+
+export function extractReferralCodeFromReferrer(referrer: string): string | null {
+  const raw = referrer?.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const keyedCode = raw.match(
+    /(?:^|[?&])(?:code|ref|referral|referralCode|invitedByCode)=([^&#]+)/i,
+  );
+  return normalizeReferralCode(keyedCode ? keyedCode[1] : raw);
+}
+
+export async function captureInstallReferrer(): Promise<string | null> {
+  if (installReferrerPromise) {
+    return installReferrerPromise;
+  }
+
+  installReferrerPromise = (async () => {
+    if (Platform.OS !== 'android') {
+      return pendingReferralCode;
+    }
+
+    try {
+      const referrer = await Application.getInstallReferrerAsync();
+      const code = extractReferralCodeFromReferrer(referrer);
+      if (code && !pendingReferralCode) {
+        pendingReferralCode = code;
+        console.log('[referral-capture] install referrer captured:', code);
+      }
+      return pendingReferralCode;
+    } catch (error) {
+      console.log('[referral-capture] install referrer unavailable:', error);
+      return pendingReferralCode;
+    }
+  })();
+
+  return installReferrerPromise;
+}
 
 export function extractReferralCode(url: string): string | null {
   if (!url) {
@@ -25,12 +80,7 @@ export function extractReferralCode(url: string): string | null {
     code = pathCode;
   }
 
-  if (!code) {
-    return null;
-  }
-
-  const decoded = decodeURIComponent(code).trim();
-  return decoded.length > 0 && decoded.length <= 20 ? decoded : null;
+  return normalizeReferralCode(code);
 }
 
 export function captureReferralCode(url: string): string | null {

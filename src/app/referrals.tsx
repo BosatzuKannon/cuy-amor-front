@@ -15,6 +15,9 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
 
+const REFERRAL_WEB_BASE = 'https://cuy-amor-web.onrender.com';
+const REFERRAL_GIFT_COINS = 100;
+
 export default function ReferralsScreen() {
   const insets = useSafeAreaInsets();
   const profile = useAuthStore((s) => s.profile);
@@ -22,11 +25,11 @@ export default function ReferralsScreen() {
   const referralEarnings = profile?.referralEarningsInCents ?? 0;
   const [copied, setCopied] = useState(false);
   const inviteLink = referralCode
-    ? `cuyamor://invite?code=${referralCode}`
+    ? `${REFERRAL_WEB_BASE}/invite?code=${referralCode}`
     : '';
   const shareMessage = referralCode
-    ? `¡Crea una cuenta en Cuy Amor, conoce personas y gana dinero! Únete con mi código: ${referralCode}. Ingresa desde este enlace: ${inviteLink}`
-    : '¡Crea una cuenta en Cuy Amor, conoce personas y gana dinero!';
+    ? `🎁 Te regalo ${REFERRAL_GIFT_COINS} Cuy Coins para que empieces con ventaja en Cuy Amor. Descarga la app y reclámalos con mi código: ${referralCode}. ${inviteLink}`
+    : '¡Conoce a tu cuy ideal en Cuy Amor!';
 
   function handleCopyCode() {
     if (!referralCode) return;
@@ -67,16 +70,17 @@ export default function ReferralsScreen() {
 
         <View style={styles.header}>
           <View style={styles.iconCircle}>
-            <AntDesign name="team" size={32} color={Colors.primary} />
+            <AntDesign name="gift" size={32} color={Colors.primary} />
           </View>
           <AppText variant="h2" color={Colors.white} style={styles.headerTitle}>
-            Programa de Referidos
+            Regálale 100 Cuy Coins a un amigo
           </AppText>
           <AppText
             variant="body"
             color="rgba(255,255,255,0.85)"
             style={styles.headerSubtitle}>
-            Invita a tus amigos y gana dinero real con cada compra que hagan.
+            Envíales tu código. Ellos empiezan con ventaja, y cuando hagan su
+            primera recarga, tú ganas el 10% directo a tu Nequi.
           </AppText>
         </View>
 
@@ -85,7 +89,7 @@ export default function ReferralsScreen() {
             variant="tag"
             color={Colors.textMuted}
             style={styles.cardTitle}>
-            Tu código de referido
+            Tu código de regalo
           </AppText>
 
           <View style={styles.codeContainer}>
@@ -114,7 +118,8 @@ export default function ReferralsScreen() {
             variant="caption"
             color={Colors.textMuted}
             style={styles.codeHint}>
-            Comparte este código con tus amigos para que lo usen al registrarse.
+            Comparte tu enlace de regalo con tus amigos para que reclamen sus
+            100 Cuy Coins al registrarse.
           </AppText>
         </View>
 
@@ -123,7 +128,7 @@ export default function ReferralsScreen() {
             variant="tag"
             color={Colors.textMuted}
             style={styles.cardTitle}>
-            Ganancias por referidos
+            Tu Bóveda Nequi
           </AppText>
 
           <View style={styles.earningsRow}>
@@ -167,11 +172,11 @@ export default function ReferralsScreen() {
             </View>
             <View style={styles.stepBody}>
               <AppText variant="bodyMedium" color={Colors.text} style={styles.stepTitle}>
-                Comparte tu código
+                Regala tus monedas
               </AppText>
               <AppText variant="caption" color={Colors.textMuted}>
-                Envía tu código de referido a tus amigos por WhatsApp, redes
-                sociales o en persona.
+                Envía tu enlace de regalo por WhatsApp, redes sociales o en
+                persona. Les llegará con tu código incluido.
               </AppText>
             </View>
           </View>
@@ -186,10 +191,11 @@ export default function ReferralsScreen() {
             </View>
             <View style={styles.stepBody}>
               <AppText variant="bodyMedium" color={Colors.text} style={styles.stepTitle}>
-                Ellos se registran
+                Empiezan con ventaja
               </AppText>
               <AppText variant="caption" color={Colors.textMuted}>
-                Tu amigo ingresa tu código al crear su cuenta en Cuy Amor.
+                Tu amigo descarga la app, se registra con tu código y recibe
+                100 Cuy Coins de regalo para destacar.
               </AppText>
             </View>
           </View>
@@ -204,24 +210,21 @@ export default function ReferralsScreen() {
             </View>
             <View style={styles.stepBody}>
               <AppText variant="bodyMedium" color={Colors.text} style={styles.stepTitle}>
-                Ganas dinero real
+                Ganas el 10% a tu Nequi
               </AppText>
               <AppText variant="caption" color={Colors.textMuted}>
-                Recibes el 10% del valor de su primera compra de paquete de
-                monedas (excepto Cuy Leyenda).
+                Cuando haga su primera recarga de monedas, recibes el 10%
+                directo a tu cuenta Nequi.
               </AppText>
             </View>
           </View>
         </View>
 
         <AppButton
-          label="Compartir código"
+          label="🎁 Enviar Regalo VIP"
           variant="solid"
           pill
           fullWidth
-          iconLeft={
-            <AntDesign name="share-alt" size={18} color={Colors.white} />
-          }
           onPress={handleShareCode}
           disabled={!referralCode}
           style={styles.shareButton}

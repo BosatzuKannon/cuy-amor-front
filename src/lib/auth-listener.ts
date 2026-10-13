@@ -3,6 +3,7 @@ import * as Linking from 'expo-linking';
 
 import { api } from '@/lib/api';
 import {
+  captureInstallReferrer,
   captureReferralCode,
   getPendingReferralCode,
   consumePendingReferralCode,
@@ -67,6 +68,8 @@ export async function handleAuthUrl(url: string) {
 
 async function syncUserWithBackend(session: Session) {
   console.log('[auth-listener] syncing user with backend, user id:', session.user.id);
+
+  await captureInstallReferrer();
 
   const metadata = session.user.user_metadata ?? {};
 
@@ -178,6 +181,8 @@ export function initAuthListener() {
   listenerStarted = true;
 
   console.log('[auth-listener] initialize');
+
+  void captureInstallReferrer();
 
   Linking.getInitialURL().then((url) => {
     console.log('[auth-listener] getInitialURL:', url);
