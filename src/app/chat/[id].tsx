@@ -456,6 +456,8 @@ export default function ChatScreen() {
 
   const session = useAuthStore((state) => state.session);
   const supabaseToken = useAuthStore((state) => state.supabaseToken);
+  const profile = useAuthStore((state) => state.profile);
+  const dailyZumbidosLeft = profile?.dailyZumbidosLeft ?? 0;
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -841,10 +843,8 @@ export default function ChatScreen() {
     if (!session || !matchId || zumbidoCooldown) {
       return;
     }
-    const profile = useAuthStore.getState().profile;
-    const isLeyenda = profile?.isLeyenda ?? false;
     const dailyZumbidosLeft = profile?.dailyZumbidosLeft ?? 0;
-    const isFree = isLeyenda && dailyZumbidosLeft > 0;
+    const isFree = dailyZumbidosLeft > 0;
 
     setZumbidoCooldown(true);
     try {
@@ -853,14 +853,14 @@ export default function ChatScreen() {
         useAuthStore.getState().updateProfile({
           dailyZumbidosLeft: dailyZumbidosLeft - 1,
         });
-        toast.success('Zumbido enviado', 'Gratis · Cuy Leyenda');
+        toast.success('¡Zumbido enviado!', 'Gratis · Zumbido del día');
       } else {
         const currentBalance =
           useAuthStore.getState().profile?.coinsBalance ?? 0;
         useAuthStore
           .getState()
           .setCoinsBalance(currentBalance - ZUMBIDO_COST_IN_COINS);
-        toast.success('Zumbido enviado', '-5 Cuy Coins');
+        toast.success('¡Zumbido enviado!', '-5 Cuy Coins');
       }
       setMessages((prev) =>
         prev.some((m) => m.id === message.id) ? prev : [...prev, message],
@@ -879,7 +879,7 @@ export default function ChatScreen() {
         setZumbidoCooldown(false);
       }, ZUMBIDO_COOLDOWN_MS);
     }
-  }, [session, matchId, zumbidoCooldown]);
+  }, [session, matchId, zumbidoCooldown, profile]);
 
   const openGiftModal = useCallback(() => {
     setShowGiftModal(true);
@@ -1195,6 +1195,16 @@ export default function ChatScreen() {
               style={styles.zumbidoIcon}
               contentFit="contain"
             />
+            {dailyZumbidosLeft > 0 ? (
+              <View style={styles.freeBadge}>
+                <AppText
+                  variant="tag"
+                  color={Colors.white}
+                  style={styles.freeBadgeText}>
+                  ¡Gratis!
+                </AppText>
+              </View>
+            ) : null}
           </Pressable>
           <Pressable
             onPress={() => void handleSend()}
@@ -1637,6 +1647,30 @@ const styles = StyleSheet.create({
   zumbidoIcon: {
     width: 28,
     height: 28,
+  },
+  freeBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: Colors.success,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: Colors.white,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  freeBadgeText: {
+    color: Colors.white,
+    fontWeight: '800',
+    fontSize: 9,
+    lineHeight: 12,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   sendButton: {
     width: 44,
