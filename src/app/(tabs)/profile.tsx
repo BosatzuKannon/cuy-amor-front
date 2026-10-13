@@ -115,6 +115,7 @@ export default function ProfileScreen() {
   const isLeyenda = profile?.isLeyenda ?? false;
   const leyendaDaysLeft = profile?.leyendaDaysLeft ?? 0;
   const referralCode = profile?.referralCode ?? null;
+  const currentStreak = profile?.currentStreak ?? 0;
 
   const SHARE_INVITE_MESSAGE = `¡Descubre gente nueva en Cuy Amor y gana dinero en el proceso! Descarga la app aquí: https://play.google.com/store/apps/details?id=com.bosatzu.frontcuyamor y usa mi código exclusivo: ${referralCode ?? 'XXXX-XXXX'} durante tu registro para ganar juntos.`;
 
@@ -203,6 +204,16 @@ export default function ProfileScreen() {
               {formatCoins(coinsBalance)} Cuy Coins
             </AppText>
           </View>
+          {currentStreak > 0 ? (
+            <View style={styles.streakBadge}>
+              <AppText
+                variant="caption"
+                color={Colors.white}
+                style={styles.streakBadgeText}>
+                🔥 {currentStreak} {currentStreak === 1 ? 'día' : 'días'}
+              </AppText>
+            </View>
+          ) : null}
         </View>
 
         <Pressable
@@ -518,6 +529,20 @@ const styles = StyleSheet.create({
   },
   coinsBadgeText: {
     textAlign: 'left',
+  },
+  streakBadge: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    backgroundColor: 'rgba(255,215,0,0.22)',
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    ...Shadows.button,
+  },
+  streakBadgeText: {
+    textAlign: 'center',
   },
   card: {
     width: '100%',

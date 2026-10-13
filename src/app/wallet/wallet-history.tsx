@@ -39,6 +39,7 @@ const INCOME_TYPES = new Set([
   'WELCOME_GIFT',
   'VIP_SUBSCRIPTION',
   'GIFT_RECEIVED',
+  'STREAK_REWARD',
 ]);
 const EXPENSE_TYPES = new Set([
   'GIFT_SENT',
@@ -73,6 +74,7 @@ function getEntryIcon(entry: WalletHistoryEntry): React.ComponentProps<typeof An
   if (entry.type === 'VIP_SUBSCRIPTION') return 'star';
   if (entry.type === 'ZUMBIDO_SENT') return 'notification';
   if (entry.type === 'NINJA_ACTIVATED') return 'eye';
+  if (entry.type === 'STREAK_REWARD') return 'gift';
   return 'wallet';
 }
 

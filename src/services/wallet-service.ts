@@ -26,6 +26,7 @@ export type WalletHistoryEntry = {
     | 'NINJA_ACTIVATED'
     | 'ZUMBIDO_SENT'
     | 'VIP_SUBSCRIPTION'
+    | 'STREAK_REWARD'
     | 'PAYOUT_REQUEST';
   amountInCents: number;
   currencyType: 'CUY_COINS' | 'REAL_MONEY';

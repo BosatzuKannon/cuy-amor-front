@@ -15,6 +15,7 @@ import {
 
 import { ExploreCard } from '@/components/explore-card';
 import { PublicProfileModal } from '@/components/public-profile-modal';
+import { StreakModal } from '@/components/streak-modal';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { api } from '@/lib/api';
@@ -28,6 +29,10 @@ import {
   createInteraction,
   type InteractionTypeCode,
 } from '@/services/interaction-service';
+import {
+  claimDailyStreak,
+  type StreakClaimResponse,
+} from '@/services/streak-service';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
@@ -105,6 +110,11 @@ export default function ExploreScreen() {
   const [isNinjaLoading, setIsNinjaLoading] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showNinjaTooltip, setShowNinjaTooltip] = useState(false);
+  const [streakResult, setStreakResult] = useState<StreakClaimResponse | null>(
+    null,
+  );
+  const [showStreakModal, setShowStreakModal] = useState(false);
+  const streakCheckedRef = useRef(false);
 
   const coinsBalance = profile?.coinsBalance ?? 0;
   const isNinjaActive = profile?.isNinja ?? false;
@@ -142,6 +152,34 @@ export default function ExploreScreen() {
       return () => {
         active = false;
       };
+    }, [session]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!session || streakCheckedRef.current) {
+        return;
+      }
+      streakCheckedRef.current = true;
+      claimDailyStreak(session)
+        .then((data) => {
+          useAuthStore.getState().updateProfile({
+            currentStreak: data.currentStreak,
+            longestStreak: data.longestStreak,
+            coinsBalance: data.coinsBalance,
+            dailyZumbidosLeft: data.dailyZumbidosLeft,
+            isNinja: data.isNinja,
+            isLeyenda: data.isLeyenda,
+          });
+          if (data.claimed) {
+            setStreakResult(data);
+            setShowStreakModal(true);
+          }
+        })
+        .catch((error) => {
+          streakCheckedRef.current = false;
+          console.error('[explore] streak claim failed:', error);
+        });
     }, [session]),
   );
 
@@ -480,6 +518,12 @@ export default function ExploreScreen() {
             playLike();
             void performAction('LIKE');
           }}
+        />
+
+        <StreakModal
+          visible={showStreakModal}
+          onClose={() => setShowStreakModal(false)}
+          result={streakResult}
         />
       </View>
     </ScreenWrapper>
