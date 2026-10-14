@@ -268,6 +268,12 @@ export default function ProfileScreen() {
             label="Ajustes de búsqueda"
             onPress={() => router.push('/search-preferences')}
           />
+          <Divider />
+          <ProfileRow
+            icon="history"
+            label="Historial y Reversazo VIP"
+            onPress={() => router.push('/history')}
+          />
         </View>
 
         <View style={styles.card}>

@@ -411,6 +411,12 @@ function GatedApp({
               presentation: 'card',
             }}
           />
+          <Stack.Screen
+            name="history"
+            options={{
+              presentation: 'card',
+            }}
+          />
         </Stack>
         </Animated.View>
 
