@@ -315,6 +315,17 @@ export default function ExploreScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => router.push('/history')}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Historial de interacciones"
+              style={({ pressed }) => [
+                styles.settingsButton,
+                pressed && styles.settingsPressed,
+              ]}>
+              <AntDesign name="history" size={20} color={Colors.white} />
+            </Pressable>
             <View style={styles.coinsPill}>
               <View style={styles.coinsIconWrap}>
                 <Image

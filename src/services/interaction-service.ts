@@ -27,6 +27,17 @@ export type InteractionHistoryEntry = {
   target: ExploreProfile;
 };
 
+export type InteractionHistoryPage = {
+  data: InteractionHistoryEntry[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export type InteractionHistoryParams = {
+  cursor?: string;
+  limit?: number;
+};
+
 function authHeaders(session: Session) {
   return { Authorization: `Bearer ${session.access_token}` };
 }
@@ -47,10 +58,17 @@ export async function createInteraction(
 
 export async function getInteractionHistory(
   session: Session,
-): Promise<InteractionHistoryEntry[]> {
-  const { data } = await api.get<InteractionHistoryEntry[]>(
+  params: InteractionHistoryParams = {},
+): Promise<InteractionHistoryPage> {
+  const { data } = await api.get<InteractionHistoryPage>(
     '/users/interactions/history',
-    { headers: authHeaders(session) },
+    {
+      headers: authHeaders(session),
+      params: {
+        ...(params.cursor ? { cursor: params.cursor } : {}),
+        ...(params.limit ? { limit: params.limit } : {}),
+      },
+    },
   );
 
   return data;

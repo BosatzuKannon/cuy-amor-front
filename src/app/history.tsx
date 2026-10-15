@@ -3,12 +3,13 @@ import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
+  RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
@@ -25,6 +26,7 @@ import {
   changeInteraction,
   getInteractionHistory,
   type InteractionHistoryEntry,
+  type InteractionHistoryPage,
   type InteractionTypeCode,
 } from '@/services/interaction-service';
 import type { ExploreProfile } from '@/services/profile-service';
@@ -38,6 +40,8 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
   hour: '2-digit',
   minute: '2-digit',
 });
+
+const PAGE_SIZE = 20;
 
 type ReversibleAction = Extract<InteractionTypeCode, 'LIKE' | 'SUPER_LIKE'>;
 
@@ -92,19 +96,88 @@ function ActionBadge({ type }: { type: InteractionTypeCode }) {
 
 function HistoryRow({
   entry,
+  isLeyenda,
   onOpenProfile,
   onReversazo,
+  onLockedPress,
   reversazoLoading,
 }: {
   entry: InteractionHistoryEntry;
+  isLeyenda: boolean;
   onOpenProfile: () => void;
   onReversazo: () => void;
+  onLockedPress: () => void;
   reversazoLoading: boolean;
 }) {
   const target = entry.target;
   const name = titleCase(target.firstName ?? '');
   const age = ageFromBirthDate(target.birthDate);
   const photoUrl = target.photo?.url ?? target.photos?.[0]?.url ?? null;
+
+  const avatarContent = (
+    <>
+      {photoUrl ? (
+        <Image
+          source={{ uri: photoUrl }}
+          style={styles.avatar}
+          contentFit="cover"
+          blurRadius={isLeyenda ? 0 : 30}
+        />
+      ) : (
+        <View style={[styles.avatar, styles.avatarPlaceholder]}>
+          <AppText variant="h3" color={Colors.white}>
+            {name.charAt(0) || 'C'}
+          </AppText>
+        </View>
+      )}
+      {!isLeyenda ? (
+        <View style={styles.avatarLock} pointerEvents="none">
+          <AntDesign name="lock" size={18} color={Colors.white} />
+        </View>
+      ) : null}
+    </>
+  );
+
+  const bodyContent = (
+    <View style={styles.historyBody}>
+      <AppText
+        variant="bodyMedium"
+        color={Colors.text}
+        style={styles.historyName}
+        numberOfLines={1}>
+        {name}
+        {age !== null ? `, ${age}` : ''}
+      </AppText>
+      <View style={styles.historyMetaRow}>
+        <ActionBadge type={entry.type} />
+        <AppText variant="caption" color={Colors.textMuted} numberOfLines={1}>
+          {dateFormatter.format(new Date(entry.createdAt))}
+        </AppText>
+      </View>
+    </View>
+  );
+
+  if (!isLeyenda) {
+    return (
+      <Pressable
+        onPress={onLockedPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Desbloquear historial de ${name || 'usuario'} con Cuy Leyenda`}
+        style={({ pressed }) => [
+          styles.historyItem,
+          pressed && styles.pressed,
+        ]}>
+        <View style={styles.avatarButton}>{avatarContent}</View>
+        {bodyContent}
+        <View style={[styles.reversazoButton, styles.reversazoLocked]}>
+          <AntDesign name="lock" size={13} color={Colors.white} />
+          <AppText variant="tag" color={Colors.white} style={styles.reversazoText}>
+            Reversazo
+          </AppText>
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <View style={styles.historyItem}>
@@ -117,33 +190,10 @@ function HistoryRow({
           styles.avatarButton,
           pressed && styles.pressed,
         ]}>
-        {photoUrl ? (
-          <Image source={{ uri: photoUrl }} style={styles.avatar} contentFit="cover" />
-        ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder]}>
-            <AppText variant="h3" color={Colors.white}>
-              {name.charAt(0) || 'C'}
-            </AppText>
-          </View>
-        )}
+        {avatarContent}
       </Pressable>
 
-      <View style={styles.historyBody}>
-        <AppText
-          variant="bodyMedium"
-          color={Colors.text}
-          style={styles.historyName}
-          numberOfLines={1}>
-          {name}
-          {age !== null ? `, ${age}` : ''}
-        </AppText>
-        <View style={styles.historyMetaRow}>
-          <ActionBadge type={entry.type} />
-          <AppText variant="caption" color={Colors.textMuted} numberOfLines={1}>
-            {dateFormatter.format(new Date(entry.createdAt))}
-          </AppText>
-        </View>
-      </View>
+      {bodyContent}
 
       <Pressable
         onPress={onReversazo}
@@ -277,6 +327,10 @@ export default function HistoryScreen() {
   const [entries, setEntries] = useState<InteractionHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [activeProfile, setActiveProfile] = useState<ExploreProfile | null>(
     null,
   );
@@ -285,28 +339,77 @@ export default function HistoryScreen() {
     null,
   );
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const loadingMoreRef = useRef(false);
 
-  const fetchHistory = useCallback(async () => {
+  const applyPage = useCallback((page: InteractionHistoryPage) => {
+    setEntries(page.data);
+    setNextCursor(page.nextCursor);
+    setHasMore(page.hasMore);
+  }, []);
+
+  const fetchFirstPage = useCallback(async () => {
     if (!session) {
       return;
     }
     setLoading(true);
     setError(false);
     try {
-      const data = await getInteractionHistory(session);
-      setEntries(data);
+      const page = await getInteractionHistory(session, { limit: PAGE_SIZE });
+      applyPage(page);
     } catch (err) {
       console.error('[history] fetch failed:', err);
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session, applyPage]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!session) {
+      return;
+    }
+    setRefreshing(true);
+    setError(false);
+    try {
+      const page = await getInteractionHistory(session, { limit: PAGE_SIZE });
+      applyPage(page);
+    } catch (err) {
+      console.error('[history] refresh failed:', err);
+      toast.error(
+        'No pudimos actualizar',
+        'Revisa tu conexión e inténtalo de nuevo.',
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }, [session, applyPage]);
+
+  const loadMore = useCallback(async () => {
+    if (!session || loadingMoreRef.current || !hasMore || !nextCursor) {
+      return;
+    }
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const page = await getInteractionHistory(session, {
+        cursor: nextCursor,
+        limit: PAGE_SIZE,
+      });
+      setEntries((prev) => [...prev, ...page.data]);
+      setNextCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch (err) {
+      console.error('[history] load more failed:', err);
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [session, hasMore, nextCursor]);
 
   useFocusEffect(
     useCallback(() => {
-      void fetchHistory();
-    }, [fetchHistory]),
+      void fetchFirstPage();
+    }, [fetchFirstPage]),
   );
 
   function handleBack() {
@@ -416,7 +519,7 @@ export default function HistoryScreen() {
             No pudimos cargar tu historial.
           </AppText>
           <Pressable
-            onPress={() => void fetchHistory()}
+            onPress={() => void fetchFirstPage()}
             style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
             <AppText variant="bodyMedium" color={Colors.primary} style={styles.retryText}>
               Reintentar
@@ -441,14 +544,33 @@ export default function HistoryScreen() {
             renderItem={({ item }) => (
               <HistoryRow
                 entry={item}
+                isLeyenda={isLeyenda}
                 reversazoLoading={submittingId === item.id}
                 onOpenProfile={() => setActiveProfile(item.target)}
                 onReversazo={() => handleReversazo(item)}
+                onLockedPress={() => setShowLeyendaModal(true)}
               />
             )}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
+            onEndReached={() => void loadMore()}
+            onEndReachedThreshold={0.4}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => void handleRefresh()}
+                tintColor={Colors.primary}
+                colors={[Colors.primary]}
+              />
+            }
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                </View>
+              ) : null
+            }
           />
         </View>
       )}
@@ -569,6 +691,11 @@ const styles = StyleSheet.create({
   listContent: {
     padding: Spacing.md,
   },
+  footerLoader: {
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   historyItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -589,6 +716,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
+  },
+  avatarLock: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   historyBody: {
     flex: 1,
@@ -633,6 +770,9 @@ const styles = StyleSheet.create({
   },
   reversazoDisabled: {
     opacity: 0.6,
+  },
+  reversazoLocked: {
+    backgroundColor: '#9CA3AF',
   },
   reversazoText: {
     textAlign: 'center',
