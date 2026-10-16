@@ -730,9 +730,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   wrapper: {
+    flex: 1,
+    width: '100%',
     paddingHorizontal: 0,
     paddingTop: 0,
     paddingBottom: 0,
+    alignItems: 'stretch',
   },
   scroll: {
     flex: 1,
@@ -762,6 +765,7 @@ const styles = StyleSheet.create({
   },
   title: {
     textAlign: 'left',
+    flexShrink: 1,
   },
   skeleton: {
     backgroundColor: '#E6E8EB',
@@ -946,6 +950,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   chipText: {
+    flexShrink: 1,
     textAlign: 'left',
   },
   chipTextSelected: {

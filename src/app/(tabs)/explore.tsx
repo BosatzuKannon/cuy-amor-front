@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { ExploreCard } from '@/components/explore-card';
+import { NinjaConfirmModal } from '@/components/ninja-confirm-modal';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { StreakModal } from '@/components/streak-modal';
 import { AppText } from '@/components/ui/app-text';
@@ -108,6 +109,7 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<ExploreProfile[]>([]);
   const [isNinjaLoading, setIsNinjaLoading] = useState(false);
+  const [showNinjaConfirm, setShowNinjaConfirm] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showNinjaTooltip, setShowNinjaTooltip] = useState(false);
   const [streakResult, setStreakResult] = useState<StreakClaimResponse | null>(
@@ -288,6 +290,7 @@ export default function ExploreScreen() {
         });
         toast.success('Modo Cuy Ninja desactivado', 'Vuelves a ser visible.');
       }
+      setShowNinjaConfirm(false);
     } catch (error) {
       console.error('[explore] toggle ninja failed:', error);
       toast.error(
@@ -297,6 +300,18 @@ export default function ExploreScreen() {
     } finally {
       setIsNinjaLoading(false);
     }
+  }
+
+  function handleNinjaSwitch(value: boolean) {
+    if (value) {
+      setShowNinjaConfirm(true);
+      return;
+    }
+    void handleToggleNinja(false);
+  }
+
+  function confirmActivateNinja() {
+    void handleToggleNinja(true);
   }
 
   function showNinjaInfo() {
@@ -467,7 +482,7 @@ export default function ExploreScreen() {
               ) : null}
               <Switch
                 value={isNinjaActive}
-                onValueChange={(value) => void handleToggleNinja(value)}
+                onValueChange={handleNinjaSwitch}
                 disabled={isNinjaLoading || (isNinjaActive && !isLeyenda)}
                 trackColor={{ false: '#767577', true: '#34C759' }}
                 thumbColor="#ffffff"
@@ -535,6 +550,14 @@ export default function ExploreScreen() {
           visible={showStreakModal}
           onClose={() => setShowStreakModal(false)}
           result={streakResult}
+        />
+
+        <NinjaConfirmModal
+          visible={showNinjaConfirm}
+          isLeyenda={isLeyenda}
+          loading={isNinjaLoading}
+          onCancel={() => setShowNinjaConfirm(false)}
+          onConfirm={confirmActivateNinja}
         />
       </View>
     </ScreenWrapper>
