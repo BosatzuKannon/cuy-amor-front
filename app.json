@@ -2,7 +2,7 @@
   "expo": {
     "name": "Cuy Amor",
     "slug": "front-cuy-amor",
-    "version": "3.3.1",
+    "version": "3.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon2.png",
     "scheme": "cuyamor",
@@ -20,7 +20,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.bosatzu.frontcuyamor",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 30
+      "versionCode": 31
     },
     "web": {
       "output": "static",

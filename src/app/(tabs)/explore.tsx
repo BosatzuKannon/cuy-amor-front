@@ -1,4 +1,4 @@
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, router } from 'expo-router';
@@ -331,6 +331,20 @@ export default function ExploreScreen() {
         <View style={styles.header}>
           <View style={styles.headerRight}>
             <Pressable
+              onPress={() => router.push('/who-likes-you' as any)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Pretendientes"
+              style={({ pressed }) => [
+                styles.settingsButton,
+                pressed && styles.settingsPressed,
+              ]}>
+              <AntDesign name="heart" size={20} color={Colors.white} />
+              <View style={styles.heartSparkle}>
+                <Ionicons name="sparkles" size={9} color={Colors.gold} />
+              </View>
+            </Pressable>
+            <Pressable
               onPress={() => router.push('/history')}
               hitSlop={10}
               accessibilityRole="button"
@@ -600,6 +614,11 @@ const styles = StyleSheet.create({
   settingsPressed: {
     opacity: 0.7,
     transform: [{ scale: 0.9 }],
+  },
+  heartSparkle: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
   },
   coinsPill: {
     flexDirection: 'row',

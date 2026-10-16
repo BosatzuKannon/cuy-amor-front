@@ -96,11 +96,49 @@ function NewMessageToastRenderer({ text1, text2 }: ToastConfigParams<unknown>) {
 
 NewMessageToastRenderer.displayName = 'Toast_newMessage';
 
+const NEW_LIKE_GOLD = '#F59E0B';
+
+function NewLikeToastCard({
+  text1,
+  text2,
+}: {
+  text1?: string;
+  text2?: string;
+}) {
+  return (
+    <View style={styles.container}>
+      <View style={[styles.iconBadge, { backgroundColor: NEW_LIKE_GOLD }]}>
+        <AntDesign name="heart" size={16} color={Colors.white} />
+      </View>
+
+      <View style={styles.content}>
+        {text1 ? (
+          <AppText variant="label" color={Colors.white}>
+            {text1}
+          </AppText>
+        ) : null}
+        {text2 ? (
+          <AppText variant="caption" color="rgba(255,255,255,0.85)">
+            {text2}
+          </AppText>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function NewLikeToastRenderer({ text1, text2 }: ToastConfigParams<unknown>) {
+  return <NewLikeToastCard text1={text1} text2={text2} />;
+}
+
+NewLikeToastRenderer.displayName = 'Toast_newLike';
+
 export const toastConfig: ToastConfig = {
   success: createToastRenderer('success'),
   error: createToastRenderer('error'),
   info: createToastRenderer('info'),
   newMessage: NewMessageToastRenderer,
+  newLike: NewLikeToastRenderer,
 };
 
 const styles = StyleSheet.create({

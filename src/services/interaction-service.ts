@@ -38,6 +38,25 @@ export type InteractionHistoryParams = {
   limit?: number;
 };
 
+export type WhoLikesMeEntry = {
+  id: string;
+  type: Extract<InteractionTypeCode, 'LIKE' | 'SUPER_LIKE'>;
+  createdAt: string;
+  liker: ExploreProfile;
+};
+
+export type WhoLikesMePage = {
+  data: WhoLikesMeEntry[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  total: number;
+};
+
+export type WhoLikesMeParams = {
+  cursor?: string;
+  limit?: number;
+};
+
 function authHeaders(session: Session) {
   return { Authorization: `Bearer ${session.access_token}` };
 }
@@ -62,6 +81,24 @@ export async function getInteractionHistory(
 ): Promise<InteractionHistoryPage> {
   const { data } = await api.get<InteractionHistoryPage>(
     '/users/interactions/history',
+    {
+      headers: authHeaders(session),
+      params: {
+        ...(params.cursor ? { cursor: params.cursor } : {}),
+        ...(params.limit ? { limit: params.limit } : {}),
+      },
+    },
+  );
+
+  return data;
+}
+
+export async function getWhoLikesMe(
+  session: Session,
+  params: WhoLikesMeParams = {},
+): Promise<WhoLikesMePage> {
+  const { data } = await api.get<WhoLikesMePage>(
+    '/users/interactions/who-likes-me',
     {
       headers: authHeaders(session),
       params: {

@@ -256,6 +256,54 @@ function useGlobalMessageToasts({
   }, [session, supabaseToken]);
 }
 
+type RealtimeInteractionPayload = {
+  id?: string;
+  type?: string;
+  fromUserId?: string;
+  toUserId?: string;
+};
+
+function useLikeToasts() {
+  const session = useAuthStore((state) => state.session);
+  const supabaseToken = useAuthStore((state) => state.supabaseToken);
+
+  useEffect(() => {
+    if (!session || !supabaseToken) {
+      return;
+    }
+    supabase.realtime.setAuth(supabaseToken);
+
+    const channel = supabase
+      .channel('global-like-toasts')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'Interaction' },
+        (payload) => {
+          const interaction =
+            payload.new as unknown as RealtimeInteractionPayload;
+          if (!interaction?.id || interaction.toUserId !== session.user.id) {
+            return;
+          }
+          if (
+            interaction.type !== 'LIKE' &&
+            interaction.type !== 'SUPER_LIKE'
+          ) {
+            return;
+          }
+          toast.newLike(
+            '¡Alguien te ha echado el ojo! 👀',
+            'Tienes un nuevo pretendiente',
+          );
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session, supabaseToken]);
+}
+
 function useLastSeenTracker() {
   const session = useAuthStore((state) => state.session);
 
@@ -300,6 +348,7 @@ function GatedApp({
       triggerZumbido();
     }, [playZumbido, triggerZumbido]),
   });
+  useLikeToasts();
   useLastSeenTracker();
 
   usePushNotifications();
@@ -413,6 +462,12 @@ function GatedApp({
           />
           <Stack.Screen
             name="history"
+            options={{
+              presentation: 'card',
+            }}
+          />
+          <Stack.Screen
+            name="who-likes-you"
             options={{
               presentation: 'card',
             }}

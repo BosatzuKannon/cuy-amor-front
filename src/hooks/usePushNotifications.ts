@@ -53,6 +53,9 @@ function resolveRoutePath(url: unknown): string {
   if (/^\/matches($|\/)/i.test(path)) {
     return '/matches';
   }
+  if (/^\/who-likes-you($|\/)/i.test(path)) {
+    return '/who-likes-you';
+  }
   if (/^\/chat\//i.test(path)) {
     return '/chat' + path.slice('/chat'.length);
   }

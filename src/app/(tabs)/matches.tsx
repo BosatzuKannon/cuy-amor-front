@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Pressable,
   ScrollView,
@@ -15,14 +16,20 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
+import { PretendienteAvatar } from '@/components/pretendiente-avatar';
+import { PublicProfileModal } from '@/components/public-profile-modal';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { useWhoLikesMe } from '@/hooks/useWhoLikesMe';
 import { titleCase } from '@/lib/text';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useChatStore } from '@/store/useChatStore';
 import { type ChatMatch, type GenderCode } from '@/services/matches-service';
 import { Colors } from '@/theme/colors';
 import { Radius, Spacing } from '@/theme/layout';
+
+const PRETENDIENTES_PREVIEW_LIMIT = 10;
 
 function openChat(match: ChatMatch) {
   router.push({
@@ -157,10 +164,30 @@ export default function MatchesScreen() {
   const loading = useChatStore((state) => state.loading);
   const fetchMatches = useChatStore((state) => state.fetchMatches);
 
+  const {
+    isLeyenda,
+    entries: pretendientes,
+    total: pretendientesTotal,
+    loading: loadingPretendientes,
+    activeLiker,
+    showLeyendaModal,
+    fetchFirstPage: fetchPretendientes,
+    openLiker,
+    closeLiker,
+    closeLeyendaModal,
+    handleDecision,
+  } = useWhoLikesMe(PRETENDIENTES_PREVIEW_LIMIT);
+
   useFocusEffect(
     useCallback(() => {
       void fetchMatches();
     }, [fetchMatches]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void fetchPretendientes();
+    }, [fetchPretendientes]),
   );
 
   const newMatches = matches.filter((match) => match.lastMessage === null);
@@ -178,6 +205,80 @@ export default function MatchesScreen() {
         <AppText variant="h2" color={Colors.white} style={styles.title}>
           Mis Cuyes
         </AppText>
+
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}>
+            <AppText
+              variant="tag"
+              color={Colors.textMuted}
+              style={styles.sectionTitle}>
+              Pretendientes
+            </AppText>
+            {pretendientesTotal > 0 ? (
+              <View style={styles.countPill}>
+                <AppText variant="tag" color={Colors.white} style={styles.countText}>
+                  {pretendientesTotal}
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+
+          {loadingPretendientes ? (
+            <View style={styles.pretendientesState}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+            </View>
+          ) : pretendientes.length === 0 ? (
+            <AppText
+              variant="caption"
+              color={Colors.textMuted}
+              style={styles.emptyHint}>
+              Aún no tienes pretendientes.
+            </AppText>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pretendientesRow}>
+              {pretendientes.slice(0, PRETENDIENTES_PREVIEW_LIMIT).map((entry) => (
+                <View key={entry.id} style={styles.pretendienteItem}>
+                  <PretendienteAvatar
+                    liker={entry.liker}
+                    size={58}
+                    isLeyenda={isLeyenda}
+                    onPress={() => openLiker(entry.liker)}
+                  />
+                  <AppText
+                    variant="caption"
+                    color={Colors.text}
+                    numberOfLines={1}
+                    style={styles.pretendienteName}>
+                    {titleCase(entry.liker.firstName)}
+                  </AppText>
+                </View>
+              ))}
+
+              <Pressable
+                onPress={() => router.push('/who-likes-you' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Ver todos los pretendientes"
+                style={({ pressed }) => [
+                  styles.verTodosItem,
+                  pressed && styles.pressedAvatar,
+                ]}>
+                <View style={styles.verTodosCircle}>
+                  <AntDesign name="arrow-right" size={22} color={Colors.primary} />
+                </View>
+                <AppText
+                  variant="caption"
+                  color={Colors.primary}
+                  numberOfLines={1}
+                  style={styles.pretendienteName}>
+                  Ver todos
+                </AppText>
+              </Pressable>
+            </ScrollView>
+          )}
+        </View>
 
         {loading && matches.length === 0 ? (
           <MatchesSkeleton />
@@ -292,6 +393,32 @@ export default function MatchesScreen() {
           </View>
         )}
       </ScrollView>
+
+      <PublicProfileModal
+        visible={activeLiker !== null}
+        profile={activeLiker}
+        onClose={closeLiker}
+        onPass={() => {
+          if (activeLiker) {
+            void handleDecision(activeLiker.id, 'PASS');
+          }
+        }}
+        onSuperLike={() => {
+          if (activeLiker) {
+            void handleDecision(activeLiker.id, 'SUPER_LIKE');
+          }
+        }}
+        onLike={() => {
+          if (activeLiker) {
+            void handleDecision(activeLiker.id, 'LIKE');
+          }
+        }}
+      />
+
+      <CuyLeyendaModal
+        visible={showLeyendaModal}
+        onClose={closeLeyendaModal}
+      />
     </ScreenWrapper>
   );
 }
@@ -412,6 +539,59 @@ const styles = StyleSheet.create({
   emptyHint: {
     textAlign: 'left',
     marginBottom: Spacing.sm,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  countPill: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.xs + 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    marginBottom: Spacing.md,
+  },
+  countText: {
+    fontWeight: '700',
+  },
+  pretendientesState: {
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pretendientesRow: {
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  pretendienteItem: {
+    alignItems: 'center',
+    width: 76,
+    gap: Spacing.xs,
+  },
+  pretendienteName: {
+    textAlign: 'center',
+    alignSelf: 'stretch',
+    maxWidth: 76,
+  },
+  verTodosItem: {
+    alignItems: 'center',
+    width: 76,
+    gap: Spacing.xs,
+  },
+  verTodosCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    backgroundColor: 'rgba(220,20,60,0.08)',
   },
   skeleton: {
     backgroundColor: '#E6E8EB',
