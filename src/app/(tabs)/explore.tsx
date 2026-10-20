@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { ExploreCard } from '@/components/explore-card';
+import { CuyazoConfirmModal } from '@/components/cuyazo-confirm-modal';
 import { NinjaConfirmModal } from '@/components/ninja-confirm-modal';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { StreakModal } from '@/components/streak-modal';
@@ -112,6 +113,7 @@ export default function ExploreScreen() {
   const [showNinjaConfirm, setShowNinjaConfirm] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showNinjaTooltip, setShowNinjaTooltip] = useState(false);
+  const [showCuyazoConfirm, setShowCuyazoConfirm] = useState(false);
   const [streakResult, setStreakResult] = useState<StreakClaimResponse | null>(
     null,
   );
@@ -170,6 +172,7 @@ export default function ExploreScreen() {
             longestStreak: data.longestStreak,
             coinsBalance: data.coinsBalance,
             dailyZumbidosLeft: data.dailyZumbidosLeft,
+            dailyCuyazosLeft: data.dailyCuyazosLeft,
             isNinja: data.isNinja,
             isLeyenda: data.isLeyenda,
           });
@@ -240,6 +243,16 @@ export default function ExploreScreen() {
     } finally {
       processingRef.current = false;
     }
+  }
+
+  function handleCuyazoPress() {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    playCuyazo();
+    if (isLeyenda && dailyCuyazosLeft > 0) {
+      void performAction('SUPER_LIKE');
+      return;
+    }
+    setShowCuyazoConfirm(true);
   }
 
   async function handleToggleNinja(value: boolean) {
@@ -423,11 +436,7 @@ export default function ExploreScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-              playCuyazo();
-              void performAction('SUPER_LIKE');
-            }}
+            onPress={handleCuyazoPress}
             disabled={noProfiles}
             hitSlop={8}
             style={({ pressed }) => [
@@ -548,11 +557,7 @@ export default function ExploreScreen() {
             playPass();
             void performAction('PASS');
           }}
-          onSuperLike={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            playCuyazo();
-            void performAction('SUPER_LIKE');
-          }}
+          onSuperLike={handleCuyazoPress}
           onLike={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             playLike();
@@ -572,6 +577,17 @@ export default function ExploreScreen() {
           loading={isNinjaLoading}
           onCancel={() => setShowNinjaConfirm(false)}
           onConfirm={confirmActivateNinja}
+        />
+
+        <CuyazoConfirmModal
+          visible={showCuyazoConfirm}
+          isFree={false}
+          coinsBalance={coinsBalance}
+          onCancel={() => setShowCuyazoConfirm(false)}
+          onConfirm={() => {
+            setShowCuyazoConfirm(false);
+            void performAction('SUPER_LIKE');
+          }}
         />
       </View>
     </ScreenWrapper>

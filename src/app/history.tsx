@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
+import { CuyazoConfirmModal } from '@/components/cuyazo-confirm-modal';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
@@ -323,6 +324,12 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const session = useAuthStore((state) => state.session);
   const isLeyenda = useAuthStore((state) => state.profile?.isLeyenda ?? false);
+  const dailyCuyazosLeft = useAuthStore(
+    (state) => state.profile?.dailyCuyazosLeft ?? 0,
+  );
+  const coinsBalance = useAuthStore(
+    (state) => state.profile?.coinsBalance ?? 0,
+  );
 
   const [entries, setEntries] = useState<InteractionHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -338,6 +345,8 @@ export default function HistoryScreen() {
   const [menuEntry, setMenuEntry] = useState<InteractionHistoryEntry | null>(
     null,
   );
+  const [cuyazoEntry, setCuyazoEntry] =
+    useState<InteractionHistoryEntry | null>(null);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
 
@@ -428,20 +437,34 @@ export default function HistoryScreen() {
     setMenuEntry(entry);
   }
 
-  async function applyChange(action: ReversibleAction) {
-    if (!session || !menuEntry) {
+  async function applyChange(entry: InteractionHistoryEntry, action: ReversibleAction) {
+    if (!session) {
       return;
     }
-    const entry = menuEntry;
     setSubmittingId(entry.id);
     try {
       const result = await changeInteraction(entry.target.id, action, session);
+      if (result.newCoinBalance !== undefined) {
+        useAuthStore.getState().setCoinsBalance(result.newCoinBalance);
+      }
+      if (
+        action === 'SUPER_LIKE' &&
+        isLeyenda &&
+        dailyCuyazosLeft > 0 &&
+        result.type === 'SUPER_LIKE' &&
+        result.previousType !== 'SUPER_LIKE'
+      ) {
+        useAuthStore.getState().updateProfile({
+          dailyCuyazosLeft: dailyCuyazosLeft - 1,
+        });
+      }
       setEntries((prev) =>
         prev.map((item) =>
           item.id === entry.id ? { ...item, type: action } : item,
         ),
       );
       setMenuEntry(null);
+      setCuyazoEntry(null);
       if (result.isMatch) {
         void Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
@@ -456,6 +479,7 @@ export default function HistoryScreen() {
     } catch (err) {
       console.error('[history] change failed:', err);
       setMenuEntry(null);
+      setCuyazoEntry(null);
       if (isAxiosError(err) && err.response?.status === 403) {
         setShowLeyendaModal(true);
       } else {
@@ -586,11 +610,41 @@ export default function HistoryScreen() {
         visible={menuEntry !== null}
         currentType={menuEntry?.type ?? null}
         submitting={menuEntry !== null && submittingId === menuEntry.id}
-        onSelect={(action) => void applyChange(action)}
+        onSelect={(action) => {
+          const entry = menuEntry;
+          if (!entry) {
+            return;
+          }
+          if (action === 'SUPER_LIKE') {
+            setMenuEntry(null);
+            setCuyazoEntry(entry);
+            return;
+          }
+          void applyChange(entry, action);
+        }}
         onClose={() => {
           if (submittingId === null) {
             setMenuEntry(null);
           }
+        }}
+      />
+
+      <CuyazoConfirmModal
+        visible={cuyazoEntry !== null}
+        isFree={isLeyenda && dailyCuyazosLeft > 0}
+        coinsBalance={coinsBalance}
+        loading={cuyazoEntry !== null && submittingId === cuyazoEntry.id}
+        onCancel={() => {
+          if (submittingId === null) {
+            setCuyazoEntry(null);
+          }
+        }}
+        onConfirm={() => {
+          const entry = cuyazoEntry;
+          if (!entry || submittingId !== null) {
+            return;
+          }
+          void applyChange(entry, 'SUPER_LIKE');
         }}
       />
 

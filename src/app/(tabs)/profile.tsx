@@ -10,6 +10,7 @@ import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { isAdminEmail } from '@/lib/admin';
 import { formatCoins, formatCop } from '@/lib/currency';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
@@ -116,6 +117,7 @@ export default function ProfileScreen() {
   const leyendaDaysLeft = profile?.leyendaDaysLeft ?? 0;
   const referralCode = profile?.referralCode ?? null;
   const currentStreak = profile?.currentStreak ?? 0;
+  const isCurrentUserAdmin = isAdminEmail(profile?.email);
 
   const SHARE_INVITE_MESSAGE = `¡Descubre gente nueva en Cuy Amor y gana dinero en el proceso! Descarga la app aquí: https://play.google.com/store/apps/details?id=com.bosatzu.frontcuyamor y usa mi código exclusivo: ${referralCode ?? 'XXXX-XXXX'} durante tu registro para ganar juntos.`;
 
@@ -376,6 +378,22 @@ export default function ProfileScreen() {
             onPress={() => router.push('/privacy')}
           />
         </View>
+
+        {isCurrentUserAdmin ? (
+          <View style={styles.card}>
+            <AppText
+              variant="tag"
+              color={Colors.textMuted}
+              style={styles.cardTitle}>
+              Admin
+            </AppText>
+            <ProfileRow
+              icon="tool"
+              label="Panel de administración"
+              onPress={() => router.push('/admin' as any)}
+            />
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <AppText

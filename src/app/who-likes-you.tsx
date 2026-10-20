@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
+import { CuyazoConfirmModal } from '@/components/cuyazo-confirm-modal';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
@@ -106,6 +107,8 @@ export default function WhoLikesYouScreen() {
   const insets = useSafeAreaInsets();
   const {
     isLeyenda,
+    coinsBalance,
+    dailyCuyazosLeft,
     entries,
     total,
     loading,
@@ -114,6 +117,8 @@ export default function WhoLikesYouScreen() {
     loadingMore,
     activeLiker,
     showLeyendaModal,
+    pendingCuyazo,
+    cuyazoLoading,
     fetchFirstPage,
     refresh,
     loadMore,
@@ -122,6 +127,8 @@ export default function WhoLikesYouScreen() {
     openLeyendaModal,
     closeLeyendaModal,
     handleDecision,
+    confirmPendingCuyazo,
+    cancelPendingCuyazo,
   } = useWhoLikesMe(PAGE_SIZE);
 
   useFocusEffect(
@@ -265,6 +272,15 @@ export default function WhoLikesYouScreen() {
       <CuyLeyendaModal
         visible={showLeyendaModal}
         onClose={closeLeyendaModal}
+      />
+
+      <CuyazoConfirmModal
+        visible={pendingCuyazo !== null}
+        isFree={isLeyenda && dailyCuyazosLeft > 0}
+        coinsBalance={coinsBalance}
+        loading={cuyazoLoading}
+        onCancel={cancelPendingCuyazo}
+        onConfirm={confirmPendingCuyazo}
       />
     </ScreenWrapper>
   );

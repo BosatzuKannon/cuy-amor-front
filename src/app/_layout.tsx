@@ -472,6 +472,12 @@ function GatedApp({
               presentation: 'card',
             }}
           />
+          <Stack.Screen
+            name="admin"
+            options={{
+              presentation: 'card',
+            }}
+          />
         </Stack>
         </Animated.View>
 

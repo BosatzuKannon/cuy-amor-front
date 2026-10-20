@@ -18,6 +18,7 @@ export type ChangeInteractionResult = {
   type: InteractionTypeCode;
   isMatch: boolean;
   matchId?: string;
+  newCoinBalance?: number;
 };
 
 export type InteractionHistoryEntry = {

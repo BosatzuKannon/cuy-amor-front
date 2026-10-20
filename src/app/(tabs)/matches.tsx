@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
+import { CuyazoConfirmModal } from '@/components/cuyazo-confirm-modal';
 import { PretendienteAvatar } from '@/components/pretendiente-avatar';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { AppText } from '@/components/ui/app-text';
@@ -166,16 +167,22 @@ export default function MatchesScreen() {
 
   const {
     isLeyenda,
+    coinsBalance,
+    dailyCuyazosLeft,
     entries: pretendientes,
     total: pretendientesTotal,
     loading: loadingPretendientes,
     activeLiker,
     showLeyendaModal,
+    pendingCuyazo,
+    cuyazoLoading,
     fetchFirstPage: fetchPretendientes,
     openLiker,
     closeLiker,
     closeLeyendaModal,
     handleDecision,
+    confirmPendingCuyazo,
+    cancelPendingCuyazo,
   } = useWhoLikesMe(PRETENDIENTES_PREVIEW_LIMIT);
 
   useFocusEffect(
@@ -418,6 +425,15 @@ export default function MatchesScreen() {
       <CuyLeyendaModal
         visible={showLeyendaModal}
         onClose={closeLeyendaModal}
+      />
+
+      <CuyazoConfirmModal
+        visible={pendingCuyazo !== null}
+        isFree={isLeyenda && dailyCuyazosLeft > 0}
+        coinsBalance={coinsBalance}
+        loading={cuyazoLoading}
+        onCancel={cancelPendingCuyazo}
+        onConfirm={confirmPendingCuyazo}
       />
     </ScreenWrapper>
   );
