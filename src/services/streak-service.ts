@@ -19,6 +19,7 @@ export type StreakClaimResponse = {
   coinsBalance: number;
   dailyZumbidosLeft: number;
   dailyCuyazosLeft: number;
+  dailyAiLeft: number;
   isNinja: boolean;
   isLeyenda: boolean;
 };

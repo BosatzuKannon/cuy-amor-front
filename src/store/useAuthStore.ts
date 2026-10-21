@@ -50,6 +50,7 @@ export type UserProfile = {
   leyendaDaysLeft: number;
   dailyZumbidosLeft: number;
   dailyCuyazosLeft: number;
+  dailyAiLeft: number;
   currentStreak: number;
   longestStreak: number;
   ninjaDaysLeft: number;
@@ -98,6 +99,7 @@ export function toUserProfile(
     leyendaDaysLeft: data.leyendaDaysLeft ?? 0,
     dailyZumbidosLeft: data.dailyZumbidosLeft ?? 0,
     dailyCuyazosLeft: data.dailyCuyazosLeft ?? 0,
+    dailyAiLeft: data.dailyAiLeft ?? 0,
     currentStreak: data.currentStreak ?? 0,
     longestStreak: data.longestStreak ?? 0,
     ninjaDaysLeft: data.ninjaDaysLeft ?? 0,

@@ -7,11 +7,19 @@ import { Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
+import { AiProfileRoastModal } from '@/components/ai-profile-roast-modal';
+import { AiQuotaUpsellModal } from '@/components/ai-quota-upsell-modal';
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { isAdminEmail } from '@/lib/admin';
 import { formatCoins, formatCop } from '@/lib/currency';
+import { toast } from '@/lib/toast';
+import {
+  extractAiErrorMessage,
+  generateProfileRoast,
+  isAiQuotaExhausted,
+} from '@/services/ai-service';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
@@ -101,8 +109,15 @@ function BalanceTile({
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const profile = useAuthStore((s) => s.profile);
+  const session = useAuthStore((s) => s.session);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showLeyendaModal, setShowLeyendaModal] = useState(false);
+  const [showRoastModal, setShowRoastModal] = useState(false);
+  const [roastLoading, setRoastLoading] = useState(false);
+  const [roastScore, setRoastScore] = useState<number | null>(null);
+  const [roastHeadline, setRoastHeadline] = useState<string | null>(null);
+  const [roastTips, setRoastTips] = useState<string[]>([]);
+  const [showAiUpsell, setShowAiUpsell] = useState(false);
 
   const firstName = profile?.firstName ?? '';
   const lastName = profile?.lastName ?? '';
@@ -155,6 +170,37 @@ export default function ProfileScreen() {
       await Share.share({ message: SHARE_INVITE_MESSAGE });
     } catch (err) {
       console.log('[profile] share invite error:', err);
+    }
+  }
+
+  async function handleProfileRoast() {
+    if (!session || roastLoading) {
+      return;
+    }
+    setRoastScore(null);
+    setRoastHeadline(null);
+    setRoastTips([]);
+    setShowRoastModal(true);
+    setRoastLoading(true);
+    try {
+      const result = await generateProfileRoast(session);
+      useAuthStore.getState().updateProfile({ dailyAiLeft: result.aiLeft });
+      setRoastScore(result.score);
+      setRoastHeadline(result.headline);
+      setRoastTips(result.tips);
+    } catch (error) {
+      setShowRoastModal(false);
+      if (isAiQuotaExhausted(error)) {
+        setShowAiUpsell(true);
+        return;
+      }
+      console.error('[profile] ai roast failed:', error);
+      toast.error(
+        'La IA no está disponible',
+        extractAiErrorMessage(error, 'Intenta de nuevo en un momento.'),
+      );
+    } finally {
+      setRoastLoading(false);
     }
   }
 
@@ -275,6 +321,13 @@ export default function ProfileScreen() {
             icon="history"
             label="Historial y Reversazo VIP"
             onPress={() => router.push('/history')}
+          />
+          <Divider />
+          <ProfileRow
+            icon="bulb"
+            label="Asesor de Perfil ✨"
+            labelColor={Colors.primary}
+            onPress={() => void handleProfileRoast()}
           />
         </View>
 
@@ -450,6 +503,20 @@ export default function ProfileScreen() {
       <CuyLeyendaModal
         visible={showLeyendaModal}
         onClose={() => setShowLeyendaModal(false)}
+      />
+
+      <AiProfileRoastModal
+        visible={showRoastModal}
+        loading={roastLoading}
+        score={roastScore}
+        headline={roastHeadline}
+        tips={roastTips}
+        onClose={() => setShowRoastModal(false)}
+      />
+
+      <AiQuotaUpsellModal
+        visible={showAiUpsell}
+        onClose={() => setShowAiUpsell(false)}
       />
     </ScreenWrapper>
   );

@@ -18,6 +18,7 @@ export type ChatMatch = {
   lastMessage: {
     id: string;
     content: string;
+    type?: MessageTypeCode;
     createdAt: string;
     isRead: boolean;
     senderId: string;
@@ -50,9 +51,14 @@ export type VirtualGiftSummary = {
   cashValueInCents: number;
 };
 
+export type MessageTypeCode = 'TEXT' | 'IMAGE' | 'AUDIO';
+
 export type ChatMessage = {
   id: string;
   content: string;
+  type?: MessageTypeCode;
+  mediaUrl?: string | null;
+  mediaDurationMs?: number | null;
   isRead: boolean;
   isPriority: boolean;
   isSystemMessage?: boolean;
@@ -92,10 +98,21 @@ export async function sendMessage(
   matchId: string,
   content: string,
   replyToId?: string,
+  media?: {
+    type?: MessageTypeCode;
+    mediaUrl?: string;
+    mediaDurationMs?: number;
+  },
 ): Promise<ChatMessage> {
   const { data } = await api.post<ChatMessage>(
     `/matches/${matchId}/messages`,
-    { content, replyToId },
+    {
+      content,
+      replyToId,
+      type: media?.type,
+      mediaUrl: media?.mediaUrl,
+      mediaDurationMs: media?.mediaDurationMs,
+    },
     { headers: authHeaders(session) },
   );
 

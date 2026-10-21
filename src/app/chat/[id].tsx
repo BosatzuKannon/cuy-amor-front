@@ -1,6 +1,16 @@
 import { AntDesign, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioPlayerStatus,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from 'expo-audio';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   useCallback,
@@ -15,6 +25,7 @@ import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -30,11 +41,25 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
+import { AiIcebreakerModal } from '@/components/ai-icebreaker-modal';
+import { AiQuotaUpsellModal } from '@/components/ai-quota-upsell-modal';
 import { GiftSelectorModal } from '@/components/gift-selector-modal';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { UserActionsModal } from '@/components/user-actions-modal';
 import { supabase } from '@/lib/supabase';
+import {
+  extractAiErrorMessage,
+  generateIcebreakers,
+  isAiQuotaExhausted,
+} from '@/services/ai-service';
+import {
+  formatVoiceDuration,
+  MAX_VOICE_DURATION_MS,
+  photoExceedsLimit,
+  uploadChatPhoto,
+  uploadChatVoiceNote,
+} from '@/lib/chat-media';
 import { toast } from '@/lib/toast';
 import { titleCase } from '@/lib/text';
 import {
@@ -252,6 +277,69 @@ function DateSeparator({ label }: { label: string }) {
 
 type ReplyTarget = { id: string; content: string; senderId: string };
 
+function formatVoiceDurationLabel(ms: number | null | undefined): string {
+  return formatVoiceDuration(ms);
+}
+
+function VoiceNoteBubble({
+  url,
+  durationMs,
+  mine,
+}: {
+  url: string;
+  durationMs: number | null | undefined;
+  mine: boolean;
+}) {
+  const player = useAudioPlayer({ uri: url });
+  const status = useAudioPlayerStatus(player);
+
+  const tint = mine ? Colors.white : Colors.primary;
+  const totalSeconds =
+    status.duration > 0 ? status.duration : (durationMs ?? 0) / 1000;
+  const currentSeconds = status.currentTime;
+  const progress =
+    totalSeconds > 0 ? Math.min(currentSeconds / totalSeconds, 1) : 0;
+
+  function handleToggle() {
+    if (status.playing) {
+      player.pause();
+      return;
+    }
+    if (status.didJustFinish || currentSeconds >= totalSeconds) {
+      void player.seekTo(0);
+    }
+    player.play();
+  }
+
+  return (
+    <Pressable onPress={handleToggle} style={styles.voiceRow}>
+      <Ionicons
+        name={status.playing ? 'pause' : 'play'}
+        size={20}
+        color={tint}
+      />
+      <View style={styles.voiceTrack}>
+        <View
+          style={[
+            styles.voiceTrackFill,
+            {
+              width: `${Math.round(progress * 100)}%`,
+              backgroundColor: tint,
+            },
+          ]}
+        />
+      </View>
+      <AppText variant="caption" color={tint} style={styles.voiceDuration}>
+        {formatVoiceDurationLabel(
+          status.playing || currentSeconds > 0
+            ? currentSeconds * 1000
+            : durationMs,
+        )}
+      </AppText>
+    </Pressable>
+  );
+}
+
 const MessageBubble = memo(function MessageBubble({
   message,
   mine,
@@ -263,6 +351,7 @@ const MessageBubble = memo(function MessageBubble({
   highlighted,
   onReply,
   onPressReplyPreview,
+  onOpenImage,
 }: {
   message: ChatMessage;
   mine: boolean;
@@ -274,6 +363,7 @@ const MessageBubble = memo(function MessageBubble({
   highlighted: boolean;
   onReply: (message: ChatMessage) => void;
   onPressReplyPreview: (replyToId: ChatMessage['replyToId']) => void;
+  onOpenImage: (url: string) => void;
 }) {
   const metaColor = mine ? 'rgba(255,255,255,0.7)' : Colors.textMuted;
 
@@ -379,12 +469,30 @@ const MessageBubble = memo(function MessageBubble({
               </View>
             </Pressable>
           )}
-          <AppText
-            variant="body"
-            color={mine ? Colors.white : '#000000'}
-            style={styles.bubbleText}>
-            {message.content}
-          </AppText>
+          {message.type === 'IMAGE' && message.mediaUrl ? (
+            <Pressable
+              onPress={() => onOpenImage(message.mediaUrl as string)}
+              style={styles.imageBubbleWrap}>
+              <Image
+                source={{ uri: message.mediaUrl }}
+                style={styles.bubbleImage}
+                contentFit="cover"
+              />
+            </Pressable>
+          ) : message.type === 'AUDIO' && message.mediaUrl ? (
+            <VoiceNoteBubble
+              url={message.mediaUrl}
+              durationMs={message.mediaDurationMs}
+              mine={mine}
+            />
+          ) : (
+            <AppText
+              variant="body"
+              color={mine ? Colors.white : '#000000'}
+              style={styles.bubbleText}>
+              {message.content}
+            </AppText>
+          )}
           <View style={styles.bubbleMeta}>
             <AppText
               variant="caption"
@@ -476,6 +584,18 @@ export default function ChatScreen() {
   const [isProfileVisible, setIsProfileVisible] = useState(false);
   const [fullProfile, setFullProfile] = useState<ExploreProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [viewerImageUrl, setViewerImageUrl] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [showAiUpsell, setShowAiUpsell] = useState(false);
+
+  const audioRecorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder, 200);
+  const recordSeconds = Math.round(recorderState.durationMillis / 1000);
+  const recordTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const chatUser: ExploreProfile | null = useMemo(
     () =>
@@ -528,6 +648,14 @@ export default function ChatScreen() {
     }
     void useGiftStore.getState().ensureGifts(session);
   }, [session]);
+
+  useEffect(() => {
+    return () => {
+      if (recordTimeoutRef.current) {
+        clearTimeout(recordTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -839,6 +967,185 @@ export default function ChatScreen() {
     }
   }
 
+  async function handleAiIcebreaker() {
+    if (!session || !matchId || aiLoading) {
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const result = await generateIcebreakers(session, matchId);
+      useAuthStore.getState().updateProfile({ dailyAiLeft: result.aiLeft });
+      if (result.suggestions.length === 0) {
+        toast.info('Sin ideas', 'La IA no generó sugerencias. Intenta de nuevo.');
+        return;
+      }
+      setAiSuggestions(result.suggestions);
+      setShowAiModal(true);
+    } catch (error) {
+      if (isAiQuotaExhausted(error)) {
+        setShowAiUpsell(true);
+        return;
+      }
+      console.error('[chat] ai icebreaker failed:', error);
+      toast.error(
+        'La IA no está disponible',
+        extractAiErrorMessage(error, 'Intenta de nuevo en un momento.'),
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function handleSelectAiSuggestion(suggestion: string) {
+    setInput(suggestion);
+    setShowAiModal(false);
+  }
+
+  async function handlePickPhoto() {
+    if (!session || !matchId || uploadingMedia) {
+      return;
+    }
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      toast.error(
+        'Permiso de galería necesario',
+        'Activa el acceso a tus fotos para enviar imágenes.',
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+    });
+    if (result.canceled) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    if (photoExceedsLimit(asset)) {
+      toast.error(
+        'Imagen demasiado grande',
+        'La foto no puede superar los 2 MB.',
+      );
+      return;
+    }
+
+    const replyToId = replyTo?.id;
+    setReplyTo(null);
+    setUploadingMedia(true);
+    try {
+      const mediaUrl = await uploadChatPhoto(session, matchId, asset);
+      const message = await sendMessage(session, matchId, '📷 Foto', replyToId, {
+        type: 'IMAGE',
+        mediaUrl,
+      });
+      setMessages((prev) =>
+        prev.some((m) => m.id === message.id) ? prev : [...prev, message],
+      );
+    } catch (error) {
+      console.error('[chat] photo send failed:', error);
+      toast.error(
+        'No se pudo enviar la foto',
+        'Revisa tu conexión e inténtalo de nuevo.',
+      );
+    } finally {
+      setUploadingMedia(false);
+    }
+  }
+
+  async function startRecording() {
+    if (!session || !matchId || uploadingMedia || isRecording) {
+      return;
+    }
+    try {
+      const permission =
+        await AudioModule.requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        toast.error(
+          'Permiso de micrófono necesario',
+          'Activa el acceso al micrófono para enviar notas de voz.',
+        );
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setIsRecording(true);
+      if (recordTimeoutRef.current) {
+        clearTimeout(recordTimeoutRef.current);
+      }
+      recordTimeoutRef.current = setTimeout(() => {
+        void stopRecordingAndSend();
+      }, MAX_VOICE_DURATION_MS);
+    } catch (error) {
+      console.error('[chat] start recording failed:', error);
+      toast.error(
+        'No se pudo iniciar la grabación',
+        'Revisa el permiso del micrófono e inténtalo de nuevo.',
+      );
+    }
+  }
+
+  async function stopRecordingAndSend() {
+    if (recordTimeoutRef.current) {
+      clearTimeout(recordTimeoutRef.current);
+      recordTimeoutRef.current = null;
+    }
+    if (!session || !matchId) {
+      return;
+    }
+
+    const durationMs = Math.min(
+      recorderState.durationMillis || recordSeconds * 1000,
+      MAX_VOICE_DURATION_MS,
+    );
+
+    setIsRecording(false);
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      if (!uri || durationMs < 500) {
+        return;
+      }
+      setUploadingMedia(true);
+      const replyToId = replyTo?.id;
+      setReplyTo(null);
+      const mediaUrl = await uploadChatVoiceNote(session, matchId, uri);
+      const message = await sendMessage(
+        session,
+        matchId,
+        `🎤 Nota de voz (${Math.max(1, Math.round(durationMs / 1000))}s)`,
+        replyToId,
+        { type: 'AUDIO', mediaUrl, mediaDurationMs: durationMs },
+      );
+      setMessages((prev) =>
+        prev.some((m) => m.id === message.id) ? prev : [...prev, message],
+      );
+    } catch (error) {
+      console.error('[chat] voice send failed:', error);
+      toast.error(
+        'No se pudo enviar la nota de voz',
+        'Revisa tu conexión e inténtalo de nuevo.',
+      );
+    } finally {
+      setUploadingMedia(false);
+    }
+  }
+
+  async function cancelRecording() {
+    if (recordTimeoutRef.current) {
+      clearTimeout(recordTimeoutRef.current);
+      recordTimeoutRef.current = null;
+    }
+    setIsRecording(false);
+    try {
+      await audioRecorder.stop();
+    } catch {
+      // ignore
+    }
+  }
+
   const handleSendZumbido = useCallback(async () => {
     if (!session || !matchId || zumbidoCooldown) {
       return;
@@ -969,6 +1276,7 @@ export default function ChatScreen() {
           highlighted={highlightedId === item.message.id}
           onReply={handleReply}
           onPressReplyPreview={handleJumpToReply}
+          onOpenImage={setViewerImageUrl}
         />
       );
     },
@@ -1163,62 +1471,147 @@ export default function ChatScreen() {
           </View>
         )}
 
-        <View style={styles.inputWrap}>
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            placeholder="Escribe un mensaje..."
-            placeholderTextColor={Colors.textMuted}
-            multiline
-            style={styles.input}
-          />
+        {isRecording ? (
+          <View style={styles.recordingBar}>
+            <View style={styles.recordingDot} />
+            <AppText variant="bodyMedium" color={Colors.white} style={styles.recordingText}>
+              Grabando… {Math.min(recordSeconds, 10)}s / 10s
+            </AppText>
+            <Pressable
+              onPress={() => void cancelRecording()}
+              hitSlop={8}
+              style={styles.recordingCancel}>
+              <AntDesign name="close" size={18} color={Colors.white} />
+            </Pressable>
+            <Pressable
+              onPress={() => void stopRecordingAndSend()}
+              hitSlop={8}
+              style={styles.recordingSend}>
+              <AntDesign name="arrow-up" size={18} color={Colors.white} />
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.inputWrap}>
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholder="Escribe un mensaje..."
+              placeholderTextColor={Colors.textMuted}
+              multiline
+              style={styles.input}
+            />
+            <Pressable
+              onPress={() => void handlePickPhoto()}
+              disabled={uploadingMedia}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.zumbidoButton,
+                pressed && styles.zumbidoButtonPressed,
+                uploadingMedia && styles.zumbidoButtonDisabled,
+              ]}>
+              <AntDesign name="picture" size={22} color={Colors.primary} />
+            </Pressable>
+            <Pressable
+              onLongPress={() => void startRecording()}
+              delayLongPress={200}
+              disabled={uploadingMedia}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.zumbidoButton,
+                pressed && styles.zumbidoButtonPressed,
+                uploadingMedia && styles.zumbidoButtonDisabled,
+              ]}>
+              <MaterialIcons name="mic" size={24} color={Colors.primary} />
+            </Pressable>
+            <Pressable
+              onPress={openGiftModal}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.zumbidoButton,
+                pressed && styles.zumbidoButtonPressed,
+              ]}>
+              <AntDesign name="gift" size={22} color={Colors.primary} />
+            </Pressable>
+            <Pressable
+              onPress={() => void handleAiIcebreaker()}
+              disabled={aiLoading}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.zumbidoButton,
+                pressed && styles.zumbidoButtonPressed,
+                aiLoading && styles.zumbidoButtonDisabled,
+              ]}>
+              {aiLoading ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <AppText variant="body" color={Colors.primary} style={styles.aiButtonText}>
+                  ✨
+                </AppText>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => void handleSendZumbido()}
+              disabled={zumbidoCooldown}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.zumbidoButton,
+                pressed && styles.zumbidoButtonPressed,
+                zumbidoCooldown && styles.zumbidoButtonDisabled,
+              ]}>
+              <Image
+                source={require('@/assets/images/zumbidoo.png')}
+                style={styles.zumbidoIcon}
+                contentFit="contain"
+              />
+              {dailyZumbidosLeft > 0 ? (
+                <View style={styles.freeBadge}>
+                  <AppText
+                    variant="tag"
+                    color={Colors.white}
+                    style={styles.freeBadgeText}>
+                    ¡Gratis!
+                  </AppText>
+                </View>
+              ) : null}
+            </Pressable>
+            <Pressable
+              onPress={() => void handleSend()}
+              disabled={sendDisabled}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.sendButton,
+                sendDisabled && styles.sendButtonDisabled,
+                { transform: [{ scale: pressed && !sendDisabled ? 0.9 : 1 }] },
+              ]}>
+              <AntDesign name="arrow-up" size={20} color={Colors.white} />
+            </Pressable>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+
+      {viewerImageUrl ? (
+        <Modal
+          transparent
+          visible
+          animationType="fade"
+          onRequestClose={() => setViewerImageUrl(null)}>
           <Pressable
-            onPress={openGiftModal}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.zumbidoButton,
-              pressed && styles.zumbidoButtonPressed,
-            ]}>
-            <AntDesign name="gift" size={22} color={Colors.primary} />
-          </Pressable>
-          <Pressable
-            onPress={() => void handleSendZumbido()}
-            disabled={zumbidoCooldown}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.zumbidoButton,
-              pressed && styles.zumbidoButtonPressed,
-              zumbidoCooldown && styles.zumbidoButtonDisabled,
-            ]}>
+            style={styles.imageViewerOverlay}
+            onPress={() => setViewerImageUrl(null)}>
             <Image
-              source={require('@/assets/images/zumbidoo.png')}
-              style={styles.zumbidoIcon}
+              source={{ uri: viewerImageUrl }}
+              style={styles.imageViewerImage}
               contentFit="contain"
             />
-            {dailyZumbidosLeft > 0 ? (
-              <View style={styles.freeBadge}>
-                <AppText
-                  variant="tag"
-                  color={Colors.white}
-                  style={styles.freeBadgeText}>
-                  ¡Gratis!
-                </AppText>
-              </View>
-            ) : null}
+            <Pressable
+              onPress={() => setViewerImageUrl(null)}
+              hitSlop={12}
+              style={styles.imageViewerClose}>
+              <AntDesign name="close" size={22} color={Colors.white} />
+            </Pressable>
           </Pressable>
-          <Pressable
-            onPress={() => void handleSend()}
-            disabled={sendDisabled}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.sendButton,
-              sendDisabled && styles.sendButtonDisabled,
-              { transform: [{ scale: pressed && !sendDisabled ? 0.9 : 1 }] },
-            ]}>
-            <AntDesign name="arrow-up" size={20} color={Colors.white} />
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
+        </Modal>
+      ) : null}
 
       <GiftSelectorModal
         visible={showGiftModal}
@@ -1245,6 +1638,18 @@ export default function ChatScreen() {
         userName={resolvedOtherUserName ? titleCase(resolvedOtherUserName) : 'este usuario'}
         onBlock={() => void handleBlockUser()}
         onReport={(reason) => void handleReportUser(reason)}
+      />
+
+      <AiIcebreakerModal
+        visible={showAiModal}
+        suggestions={aiSuggestions}
+        onSelect={handleSelectAiSuggestion}
+        onClose={() => setShowAiModal(false)}
+      />
+
+      <AiQuotaUpsellModal
+        visible={showAiUpsell}
+        onClose={() => setShowAiUpsell(false)}
       />
     </ScreenWrapper>
   );
@@ -1532,6 +1937,92 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
   },
+  imageBubbleWrap: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 2,
+  },
+  bubbleImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+  },
+  voiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    minWidth: 160,
+    paddingVertical: 2,
+  },
+  voiceTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(128,128,128,0.35)',
+    overflow: 'hidden',
+  },
+  voiceTrackFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  voiceDuration: {
+    fontSize: 11,
+    minWidth: 34,
+    textAlign: 'right',
+  },
+  recordingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  recordingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
+  },
+  recordingText: {
+    flex: 1,
+  },
+  recordingCancel: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  recordingSend: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+  },
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageViewerImage: {
+    width: '100%',
+    height: '80%',
+  },
+  imageViewerClose: {
+    position: 'absolute',
+    top: 48,
+    right: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
   bubbleMeta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1643,6 +2134,9 @@ const styles = StyleSheet.create({
   },
   zumbidoButtonDisabled: {
     opacity: 0.45,
+  },
+  aiButtonText: {
+    fontSize: 20,
   },
   zumbidoIcon: {
     width: 28,

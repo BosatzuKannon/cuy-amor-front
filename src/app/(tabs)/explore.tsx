@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 
 import { ExploreCard } from '@/components/explore-card';
+import { SwipeCard, type SwipeDirection } from '@/components/swipe-card';
+import { SwipeTutorialOverlay } from '@/components/swipe-tutorial-overlay';
 import { CuyazoConfirmModal } from '@/components/cuyazo-confirm-modal';
 import { NinjaConfirmModal } from '@/components/ninja-confirm-modal';
 import { PublicProfileModal } from '@/components/public-profile-modal';
@@ -22,6 +24,10 @@ import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { api } from '@/lib/api';
 import { useInteractionSounds } from '@/lib/interaction-sounds';
+import {
+  hasSeenSwipeTutorial,
+  markSwipeTutorialSeen,
+} from '@/lib/swipe-tutorial';
 import { toast } from '@/lib/toast';
 import {
   getExploreFeed,
@@ -114,6 +120,8 @@ export default function ExploreScreen() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showNinjaTooltip, setShowNinjaTooltip] = useState(false);
   const [showCuyazoConfirm, setShowCuyazoConfirm] = useState(false);
+  const [showSwipeTutorial, setShowSwipeTutorial] = useState(false);
+  const tutorialCheckedRef = useRef(false);
   const [streakResult, setStreakResult] = useState<StreakClaimResponse | null>(
     null,
   );
@@ -191,6 +199,20 @@ export default function ExploreScreen() {
   const activeProfile = profiles[0] ?? null;
   const noProfiles = profiles.length === 0;
 
+  useFocusEffect(
+    useCallback(() => {
+      if (tutorialCheckedRef.current) {
+        return;
+      }
+      tutorialCheckedRef.current = true;
+      void hasSeenSwipeTutorial().then((seen) => {
+        if (!seen) {
+          setShowSwipeTutorial(true);
+        }
+      });
+    }, []),
+  );
+
   const processingRef = useRef(false);
   const ninjaTooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -253,6 +275,22 @@ export default function ExploreScreen() {
       return;
     }
     setShowCuyazoConfirm(true);
+  }
+
+  function handleSwipe(direction: SwipeDirection) {
+    if (direction === 'LIKE') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      playLike();
+      void performAction('LIKE');
+    } else {
+      playPass();
+      void performAction('PASS');
+    }
+  }
+
+  function dismissSwipeTutorial() {
+    setShowSwipeTutorial(false);
+    void markSwipeTutorialSeen();
   }
 
   async function handleToggleNinja(value: boolean) {
@@ -398,10 +436,16 @@ export default function ExploreScreen() {
         {loading && profiles.length === 0 ? (
           <ExploreSkeleton />
         ) : activeProfile ? (
-          <ExploreCard
-            profile={activeProfile}
-            onPress={() => setIsProfileOpen(true)}
-          />
+          <SwipeCard
+            key={activeProfile.id}
+            enabled={!noProfiles}
+            onSwipe={handleSwipe}
+            onPress={() => setIsProfileOpen(true)}>
+            <ExploreCard
+              profile={activeProfile}
+              onPress={() => setIsProfileOpen(true)}
+            />
+          </SwipeCard>
         ) : (
           <View style={[styles.card, styles.emptyCard, styles.cardEmpty]}>
             <AntDesign name="heart" size={40} color={Colors.white} />
@@ -418,23 +462,6 @@ export default function ExploreScreen() {
         )}
 
         <View style={styles.actionsRow}>
-          <Pressable
-            onPress={() => {
-              playPass();
-              void performAction('PASS');
-            }}
-            disabled={noProfiles}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.actionSide,
-              { backgroundColor: '#FFFFFF' },
-              noProfiles && styles.actionDisabled,
-              { transform: [{ scale: pressed ? 0.9 : 1 }] },
-            ]}>
-            <AntDesign name="close" size={28} color="#9CA3AF" />
-          </Pressable>
-
           <Pressable
             onPress={handleCuyazoPress}
             disabled={noProfiles}
@@ -456,24 +483,6 @@ export default function ExploreScreen() {
                 </AppText>
               </View>
             )}
-          </Pressable>
-
-          <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              playLike();
-              void performAction('LIKE');
-            }}
-            disabled={noProfiles}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.actionSide,
-              { backgroundColor: '#FFFFFF' },
-              noProfiles && styles.actionDisabled,
-              { transform: [{ scale: pressed ? 0.9 : 1 }] },
-            ]}>
-            <AntDesign name="heart" size={28} color="#DC2626" />
           </Pressable>
         </View>
 
@@ -569,6 +578,11 @@ export default function ExploreScreen() {
           visible={showStreakModal}
           onClose={() => setShowStreakModal(false)}
           result={streakResult}
+        />
+
+        <SwipeTutorialOverlay
+          visible={showSwipeTutorial}
+          onDismiss={dismissSwipeTutorial}
         />
 
         <NinjaConfirmModal
@@ -689,21 +703,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.xl,
     paddingVertical: Spacing.lg,
-  },
-  actionButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.white,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  actionSide: {
-    width: 60,
-    height: 60,
-    borderRadius: Radius.pill,
   },
   actionCuyazo: {
     width: 80,

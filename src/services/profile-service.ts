@@ -59,6 +59,7 @@ export type UserProfileData = {
   leyendaDaysLeft?: number;
   dailyZumbidosLeft?: number;
   dailyCuyazosLeft?: number;
+  dailyAiLeft?: number;
   currentStreak?: number;
   longestStreak?: number;
   ninjaDaysLeft?: number;

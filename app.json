@@ -2,7 +2,7 @@
   "expo": {
     "name": "Cuy Amor",
     "slug": "front-cuy-amor",
-    "version": "3.4.0",
+    "version": "4.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon2.png",
     "scheme": "cuyamor",
@@ -20,7 +20,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.bosatzu.frontcuyamor",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 31
+      "versionCode": 32
     },
     "web": {
       "output": "static",
@@ -68,7 +68,8 @@
       [
         "expo-audio",
         {
-          "recordAudioAndroid": false
+          "microphonePermission": "Cuy Amor usa tu micrófono para que puedas enviar notas de voz en el chat.",
+          "recordAudioAndroid": true
         }
       ]
     ],
