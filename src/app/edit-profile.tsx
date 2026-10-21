@@ -25,6 +25,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import {
+  PROFILE_PROMPTS,
+  PROFILE_PROMPTS_MAX_COUNT,
+  PROMPT_ANSWER_MAX_LENGTH,
+  sanitizeProfilePrompts,
+  type ProfilePromptAnswer,
+} from '@/lib/profile-prompts';
 import { toast } from '@/lib/toast';
 import {
   deleteAccount,
@@ -91,12 +98,14 @@ function SelectChip({
   onPress,
   style,
   labelStyle,
+  numberOfLines = 1,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
   labelStyle?: StyleProp<TextStyle>;
+  numberOfLines?: number;
 }) {
   return (
     <Pressable
@@ -111,7 +120,7 @@ function SelectChip({
         variant="tag"
         color={selected ? Colors.white : Colors.text}
         style={[styles.chipText, selected && styles.chipTextSelected, labelStyle]}
-        numberOfLines={1}
+        numberOfLines={numberOfLines}
         adjustsFontSizeToFit>
         {label}
       </AppText>
@@ -195,6 +204,7 @@ export default function EditProfileScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [bio, setBio] = useState('');
+  const [promptAnswers, setPromptAnswers] = useState<ProfilePromptAnswer[]>([]);
   const [gender, setGender] = useState<GenderCode | null>(null);
   const [interestedIn, setInterestedIn] = useState<InterestedInCode | null>(null);
   const [relationshipGoal, setRelationshipGoal] =
@@ -228,6 +238,9 @@ export default function EditProfileScreen() {
         setFirstName(profile.firstName ?? '');
         setLastName(profile.lastName ?? '');
         setBio(profile.bio ?? '');
+        setPromptAnswers(
+          Array.isArray(profile.profilePrompts) ? profile.profilePrompts : [],
+        );
         setGender(profile.gender);
         setInterestedIn(profile.interestedIn);
         setRelationshipGoal(profile.relationshipGoal);
@@ -262,6 +275,29 @@ export default function EditProfileScreen() {
       cancelled = true;
     };
   }, [session]);
+
+  function togglePrompt(id: string) {
+    setPromptAnswers((current) => {
+      const exists = current.some((item) => item.id === id);
+      if (exists) {
+        return current.filter((item) => item.id !== id);
+      }
+      if (current.length >= PROFILE_PROMPTS_MAX_COUNT) {
+        toast.info(
+          'Máximo alcanzado',
+          `Puedes elegir hasta ${PROFILE_PROMPTS_MAX_COUNT} preguntas.`,
+        );
+        return current;
+      }
+      return [...current, { id, answer: '' }];
+    });
+  }
+
+  function setPromptAnswer(id: string, answer: string) {
+    setPromptAnswers((current) =>
+      current.map((item) => (item.id === id ? { ...item, answer } : item)),
+    );
+  }
 
   function handleBack() {
     setShowDatePicker(false);
@@ -365,6 +401,7 @@ export default function EditProfileScreen() {
           firstName: firstName.trim(),
           lastName: lastName.trim() || null,
           ...(bio.trim() ? { bio: bio.trim() } : {}),
+          profilePrompts: sanitizeProfilePrompts(promptAnswers),
           gender,
           birthDate,
           ...(interestedIn ? { interestedIn } : {}),
@@ -566,6 +603,57 @@ export default function EditProfileScreen() {
                     />
                   </View>
                 ) : null}
+              </View>
+
+              <View style={styles.card}>
+                <FieldLabel>Preguntas de perfil</FieldLabel>
+                <AppText variant="caption" color={Colors.textMuted} style={styles.hint}>
+                  Elige hasta {PROFILE_PROMPTS_MAX_COUNT} y respóndelas. Ayudan a
+                  que te escriban más.
+                </AppText>
+
+                <View style={styles.promptChips}>
+                  {PROFILE_PROMPTS.map((prompt) => {
+                    const selected = promptAnswers.some(
+                      (item) => item.id === prompt.id,
+                    );
+                    return (
+                      <SelectChip
+                        key={prompt.id}
+                        label={prompt.label}
+                        selected={selected}
+                        onPress={() => togglePrompt(prompt.id)}
+                        style={styles.promptChip}
+                        labelStyle={styles.promptChipLabel}
+                        numberOfLines={2}
+                      />
+                    );
+                  })}
+                </View>
+
+                {promptAnswers.map((item) => {
+                  const prompt = PROFILE_PROMPTS.find((p) => p.id === item.id);
+                  return (
+                    <View key={item.id} style={styles.promptAnswerBlock}>
+                      <AppText
+                        variant="bodyMedium"
+                        color={Colors.primary}
+                        style={styles.promptAnswerLabel}>
+                        {prompt?.label ?? item.id}
+                      </AppText>
+                      <TextInput
+                        value={item.answer}
+                        onChangeText={(text) => setPromptAnswer(item.id, text)}
+                        placeholder={prompt?.placeholder ?? 'Tu respuesta…'}
+                        placeholderTextColor={Colors.textMuted}
+                        style={[styles.input, styles.inputMultilineSmall]}
+                        multiline
+                        numberOfLines={3}
+                        maxLength={PROMPT_ANSWER_MAX_LENGTH}
+                      />
+                    </View>
+                  );
+                })}
               </View>
 
               <View style={styles.card}>
@@ -885,6 +973,31 @@ const styles = StyleSheet.create({
   inputMultiline: {
     minHeight: 120,
     textAlignVertical: 'top',
+  },
+  inputMultilineSmall: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  promptChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  promptChip: {
+    maxWidth: '100%',
+    justifyContent: 'flex-start',
+    paddingVertical: Spacing.sm,
+  },
+  promptChipLabel: {
+    flexShrink: 1,
+    textAlign: 'left',
+  },
+  promptAnswerBlock: {
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  promptAnswerLabel: {
+    color: Colors.primary,
   },
   hint: {
     textAlign: 'left',

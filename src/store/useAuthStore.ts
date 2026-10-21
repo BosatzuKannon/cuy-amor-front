@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Session, User } from '@supabase/supabase-js';
 
 import { api } from '@/lib/api';
+import type { ProfilePromptAnswer } from '@/lib/profile-prompts';
 import { supabase } from '@/lib/supabase';
 import { titleCase } from '@/lib/text';
 import type { ProfilePreferences, UserProfileData } from '@/services/profile-service';
@@ -35,6 +36,7 @@ export type UserProfile = {
   relationshipGoal: RelationshipGoalCode | null;
   hobbies: string[];
   bio: string | null;
+  profilePrompts: ProfilePromptAnswer[];
   city: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -79,6 +81,9 @@ export function toUserProfile(
     relationshipGoal: data.relationshipGoal,
     hobbies: Array.isArray(data.hobbies) ? data.hobbies : [],
     bio: data.bio,
+    profilePrompts: Array.isArray(data.profilePrompts)
+      ? data.profilePrompts
+      : [],
     city: data.city,
     latitude: data.latitude,
     longitude: data.longitude,
@@ -152,7 +157,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       !!profile &&
       !!profile.birthDate &&
       !!profile.gender &&
-      (profile.photos?.length ?? 0) > 0;
+      (profile.photos?.length ?? 0) > 0 &&
+      (profile.profilePrompts?.length ?? 0) > 0;
     console.log(
       '[useAuthStore] setProfile:',
       profileComplete ? 'complete' : 'incomplete',
@@ -169,7 +175,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     const profile = { ...current, ...partial };
     const profileComplete =
-      !!profile.birthDate && !!profile.gender && profile.photos.length > 0;
+      !!profile.birthDate &&
+      !!profile.gender &&
+      profile.photos.length > 0 &&
+      (profile.profilePrompts?.length ?? 0) > 0;
     set({ profile, profileComplete });
   },
     deductCoins: (amount) => {

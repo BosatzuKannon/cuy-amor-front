@@ -25,6 +25,13 @@ import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { api } from '@/lib/api';
 import { uploadProfilePhoto } from '@/lib/photo-upload';
+import {
+  PROFILE_PROMPTS,
+  PROMPT_ANSWER_MAX_LENGTH,
+  PROFILE_PROMPTS_MAX_COUNT,
+  sanitizeProfilePrompts,
+  type ProfilePromptAnswer,
+} from '@/lib/profile-prompts';
 import { toast } from '@/lib/toast';
 import type { UserProfileData } from '@/services/profile-service';
 import {
@@ -85,6 +92,7 @@ type ProfilePayload = {
   relationshipGoal: RelationshipGoalCode | null;
   hobbies: string[];
   bio?: string;
+  profilePrompts?: ProfilePromptAnswer[];
   latitude?: number;
   longitude?: number;
   invitedByCode?: string;
@@ -113,12 +121,14 @@ function SelectChip({
   onPress,
   style,
   labelStyle,
+  numberOfLines = 1,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
   labelStyle?: StyleProp<TextStyle>;
+  numberOfLines?: number;
 }) {
   return (
     <Pressable
@@ -136,7 +146,7 @@ function SelectChip({
           selected ? styles.chipLabelSelected : undefined,
           labelStyle,
         ]}
-        numberOfLines={1}
+        numberOfLines={numberOfLines}
         adjustsFontSizeToFit>
         {label}
       </AppText>
@@ -166,6 +176,7 @@ export default function OnboardingScreen() {
     useState<RelationshipGoalCode | null>(null);
   const [hobbies, setHobbies] = useState<string[]>([]);
   const [bio, setBio] = useState('');
+  const [promptAnswers, setPromptAnswers] = useState<ProfilePromptAnswer[]>([]);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -197,6 +208,29 @@ export default function OnboardingScreen() {
       current.includes(hobby)
         ? current.filter((item) => item !== hobby)
         : [...current, hobby],
+    );
+  }
+
+  function togglePrompt(id: string) {
+    setPromptAnswers((current) => {
+      const exists = current.some((item) => item.id === id);
+      if (exists) {
+        return current.filter((item) => item.id !== id);
+      }
+      if (current.length >= PROFILE_PROMPTS_MAX_COUNT) {
+        toast.info(
+          'Máximo alcanzado',
+          `Puedes elegir hasta ${PROFILE_PROMPTS_MAX_COUNT} preguntas.`,
+        );
+        return current;
+      }
+      return [...current, { id, answer: '' }];
+    });
+  }
+
+  function setPromptAnswer(id: string, answer: string) {
+    setPromptAnswers((current) =>
+      current.map((item) => (item.id === id ? { ...item, answer } : item)),
     );
   }
 
@@ -394,8 +428,21 @@ export default function OnboardingScreen() {
       return;
     }
 
-    if (step === 3 || step === 4) {
-      setStep(step + 1);
+    if (step === 3) {
+      setStep(4);
+      return;
+    }
+
+    if (step === 4) {
+      const validPrompts = sanitizeProfilePrompts(promptAnswers);
+      if (validPrompts.length === 0) {
+        toast.error(
+          'Responde al menos una pregunta',
+          'Contesta al menos un prompt para que tu perfil destaque.',
+        );
+        return;
+      }
+      setStep(5);
       return;
     }
 
@@ -427,6 +474,16 @@ export default function OnboardingScreen() {
       return;
     }
 
+    const validPrompts = sanitizeProfilePrompts(promptAnswers);
+    if (validPrompts.length === 0) {
+      toast.error(
+        'Responde al menos una pregunta',
+        'Contesta al menos un prompt para completar tu registro.',
+      );
+      setStep(4);
+      return;
+    }
+
     setSubmitting(true);
 
     const payload: ProfilePayload = {
@@ -436,6 +493,7 @@ export default function OnboardingScreen() {
       relationshipGoal,
       hobbies,
       bio: bio.trim() || undefined,
+      profilePrompts: validPrompts,
       ...(location
         ? {
             latitude: Number(location.latitude.toFixed(6)),
@@ -695,7 +753,71 @@ export default function OnboardingScreen() {
                     variant="tag"
                     color={Colors.textMuted}
                     style={styles.label}>
-                    Sobre ti
+                    Responde al menos una pregunta
+                  </AppText>
+                  <AppText
+                    variant="caption"
+                    color={Colors.textMuted}
+                    style={styles.promptHint}>
+                    Elige hasta {PROFILE_PROMPTS_MAX_COUNT} y respóndelas con tu
+                    toque pastuso. Así tu perfil destaca y es más fácil que te
+                    escriban.
+                  </AppText>
+
+                  <View style={styles.promptChips}>
+                    {PROFILE_PROMPTS.map((prompt) => {
+                      const selected = promptAnswers.some(
+                        (item) => item.id === prompt.id,
+                      );
+                      return (
+                        <SelectChip
+                          key={prompt.id}
+                          label={prompt.label}
+                          selected={selected}
+                          onPress={() => togglePrompt(prompt.id)}
+                          style={styles.promptChip}
+                          labelStyle={styles.promptChipLabel}
+                          numberOfLines={2}
+                        />
+                      );
+                    })}
+                  </View>
+
+                  {promptAnswers.map((item) => {
+                    const prompt = PROFILE_PROMPTS.find(
+                      (p) => p.id === item.id,
+                    );
+                    return (
+                      <View key={item.id} style={styles.promptAnswerBlock}>
+                        <AppText
+                          variant="bodyMedium"
+                          color={Colors.text}
+                          style={styles.promptAnswerLabel}>
+                          {prompt?.label ?? item.id}
+                        </AppText>
+                        <TextInput
+                          value={item.answer}
+                          onChangeText={(text) =>
+                            setPromptAnswer(item.id, text)
+                          }
+                          placeholder={prompt?.placeholder ?? 'Tu respuesta…'}
+                          placeholderTextColor={Colors.textMuted}
+                          style={[styles.input, styles.inputMultilineSmall]}
+                          multiline
+                          numberOfLines={3}
+                          maxLength={PROMPT_ANSWER_MAX_LENGTH}
+                        />
+                      </View>
+                    );
+                  })}
+
+                  <View style={styles.bioSeparator} />
+
+                  <AppText
+                    variant="tag"
+                    color={Colors.textMuted}
+                    style={styles.label}>
+                    Sobre ti (opcional)
                   </AppText>
                   <TextInput
                     value={bio}
@@ -704,12 +826,9 @@ export default function OnboardingScreen() {
                     placeholderTextColor={Colors.textMuted}
                     style={[styles.input, styles.inputMultiline]}
                     multiline
-                    numberOfLines={5}
+                    numberOfLines={4}
                     maxLength={500}
                   />
-                  <AppText variant="caption" color={Colors.textMuted}>
-                    Opcional · hasta 500 caracteres
-                  </AppText>
                 </View>
               ) : null}
 
@@ -1045,6 +1164,38 @@ const styles = StyleSheet.create({
   inputMultiline: {
     minHeight: 132,
     textAlignVertical: 'top',
+  },
+  inputMultilineSmall: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  promptHint: {
+    lineHeight: 18,
+  },
+  promptChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  promptChip: {
+    maxWidth: '100%',
+    justifyContent: 'flex-start',
+    paddingVertical: Spacing.sm,
+  },
+  promptChipLabel: {
+    flexShrink: 1,
+    textAlign: 'left',
+  },
+  promptAnswerBlock: {
+    gap: Spacing.xs,
+  },
+  promptAnswerLabel: {
+    color: Colors.primary,
+  },
+  bioSeparator: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: Spacing.sm,
   },
   dobRow: {
     flexDirection: 'row',

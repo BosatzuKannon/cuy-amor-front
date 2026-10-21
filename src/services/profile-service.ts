@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 
 import { api } from '@/lib/api';
 import { removeImageFromBucket, uploadImageToBucket } from '@/lib/photo-upload';
+import type { ProfilePromptAnswer } from '@/lib/profile-prompts';
 
 const MAX_PHOTOS = 3;
 
@@ -41,6 +42,7 @@ export type UserProfileData = {
   gender: GenderCode | null;
   birthDate: string | null;
   bio: string | null;
+  profilePrompts?: ProfilePromptAnswer[];
   city: string | null;
   interestedIn: InterestedInCode | null;
   relationshipGoal: RelationshipGoalCode | null;
@@ -71,6 +73,7 @@ export type UpdateProfileData = {
   gender?: GenderCode;
   birthDate?: string;
   bio?: string;
+  profilePrompts?: ProfilePromptAnswer[];
   city?: string;
   interestedIn?: InterestedInCode;
   relationshipGoal?: RelationshipGoalCode;
@@ -91,6 +94,7 @@ export type ExploreProfile = {
   firstName: string;
   birthDate: string | null;
   bio: string | null;
+  profilePrompts?: ProfilePromptAnswer[];
   gender: GenderCode | null;
   city?: string | null;
   relationshipGoal?: RelationshipGoalCode | null;

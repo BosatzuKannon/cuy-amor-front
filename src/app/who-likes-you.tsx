@@ -19,6 +19,7 @@ import { PublicProfileModal } from '@/components/public-profile-modal';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { useWhoLikesMe } from '@/hooks/useWhoLikesMe';
+import { buildLikeTeaser } from '@/lib/like-teaser';
 import { ageFromBirthDate } from '@/lib/profile-format';
 import { titleCase } from '@/lib/text';
 import type { WhoLikesMeEntry } from '@/services/interaction-service';
@@ -40,66 +41,95 @@ function LikerCard({
   const name = titleCase(liker.firstName ?? '');
   const age = ageFromBirthDate(liker.birthDate);
   const photoUrl = liker.photo?.url ?? liker.photos?.[0]?.url ?? null;
+  const teaser = buildLikeTeaser(liker);
 
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={
-        isLeyenda
-          ? `Ver perfil de ${name || 'usuario'}`
-          : `Desbloquear pretendiente ${name || 'usuario'} con Cuy Leyenda`
-      }
-      style={({ pressed }) => [styles.gridItem, pressed && styles.pressed]}>
-      {photoUrl ? (
-        <Image
-          source={{ uri: photoUrl }}
-          style={styles.gridPhoto}
-          contentFit="cover"
-          blurRadius={isLeyenda ? 0 : 26}
-        />
-      ) : (
-        <View style={[styles.gridPhoto, styles.gridPlaceholder]}>
-          <AppText variant="display" color={Colors.white}>
-            {name.charAt(0) || 'C'}
-          </AppText>
-        </View>
-      )}
-
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.78)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.gridOverlay}
-      />
-
-      {entry.type === 'SUPER_LIKE' ? (
-        <View style={styles.superBadge}>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={
+          isLeyenda
+            ? `Ver perfil de ${name || 'usuario'}`
+            : `Desbloquear pretendiente ${name || 'usuario'} con Cuy Leyenda`
+        }
+        style={({ pressed }) => [
+          styles.gridItem,
+          liker.isLeyenda && styles.gridItemLeyenda,
+          pressed && styles.pressed,
+        ]}>
+        {photoUrl ? (
           <Image
-            source={require('@/assets/images/cuyazoo.png')}
-            style={styles.superBadgeIcon}
-            contentFit="contain"
+            source={{ uri: photoUrl }}
+            style={styles.gridPhoto}
+            contentFit="cover"
+            blurRadius={isLeyenda ? 0 : 26}
           />
-        </View>
-      ) : null}
+        ) : (
+          <View style={[styles.gridPhoto, styles.gridPlaceholder]}>
+            <AppText variant="display" color={Colors.white}>
+              {name.charAt(0) || 'C'}
+            </AppText>
+          </View>
+        )}
 
-      {!isLeyenda ? (
-        <View style={styles.gridLock} pointerEvents="none">
-          <AntDesign name="lock" size={22} color={Colors.white} />
-        </View>
-      ) : null}
+        {liker.isLeyenda ? (
+          <View style={styles.crownBadge} pointerEvents="none">
+            <AntDesign name="crown" size={14} color={Colors.gold} />
+          </View>
+        ) : null}
 
-      <View style={styles.gridNameWrap} pointerEvents="none">
-        <AppText
-          variant="bodyMedium"
-          color={Colors.white}
-          numberOfLines={1}
-          style={styles.gridName}>
-          {name}
-          {age !== null ? `, ${age}` : ''}
-        </AppText>
-      </View>
-    </Pressable>
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.78)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.gridOverlay}
+        />
+
+        {entry.type === 'SUPER_LIKE' ? (
+          <View style={styles.superBadge}>
+            <Image
+              source={require('@/assets/images/cuyazoo.png')}
+              style={styles.superBadgeIcon}
+              contentFit="contain"
+            />
+          </View>
+        ) : null}
+
+        {!isLeyenda ? (
+          <View style={styles.gridLock} pointerEvents="none">
+            <AntDesign name="lock" size={22} color={Colors.white} />
+          </View>
+        ) : null}
+
+        <View style={styles.gridNameWrap} pointerEvents="none">
+          {isLeyenda ? (
+            <AppText
+              variant="bodyMedium"
+              color={Colors.white}
+              numberOfLines={1}
+              style={styles.gridName}>
+              {name}
+              {age !== null ? `, ${age}` : ''}
+            </AppText>
+          ) : (
+            <>
+              <AppText
+                variant="bodyMedium"
+                color={Colors.gold}
+                numberOfLines={1}
+                style={styles.gridName}>
+                {teaser}
+              </AppText>
+              <AppText
+                variant="caption"
+                color="rgba(255,255,255,0.85)"
+                style={styles.gridTeaserCta}>
+                ¿Quién será? 👀
+              </AppText>
+            </>
+          )}
+        </View>
+      </Pressable>
   );
 }
 
@@ -386,6 +416,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: Colors.neutral,
   },
+  gridItemLeyenda: {
+    borderWidth: 2,
+    borderColor: Colors.gold,
+    ...Shadows.card,
+  },
+  crownBadge: {
+    position: 'absolute',
+    top: Spacing.sm,
+    left: Spacing.sm,
+    width: 26,
+    height: 26,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    borderColor: Colors.gold,
+  },
   gridPhoto: {
     width: '100%',
     height: '100%',
@@ -438,6 +486,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   gridName: {
+    textAlign: 'left',
+  },
+  gridTeaserCta: {
     textAlign: 'left',
   },
   footerLoader: {

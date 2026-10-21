@@ -1,8 +1,15 @@
 import { AntDesign } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { HighlyRequestedBadge } from '@/components/highly-requested-badge';
 import { AppText } from '@/components/ui/app-text';
@@ -56,7 +63,7 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
     : null;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, profile.isLeyenda && styles.cardLeyenda]}>
       <LinearGradient
         colors={gradient.colors}
         start={{ x: 0, y: 0 }}
@@ -80,12 +87,20 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
             </View>
           )}
 
+          {profile.isLeyenda ? <LeyendaShine /> : null}
+
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.85)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={styles.overlay}
           />
+
+          {profile.isLeyenda ? (
+            <View style={styles.crownBadge} pointerEvents="none">
+              <AntDesign name="crown" size={16} color="#FFD700" />
+            </View>
+          ) : null}
 
           <View style={styles.overlayContent}>
             {profile.isHighlyRequested ? (
@@ -153,6 +168,45 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
   );
 }
 
+function LeyendaShine() {
+  const progress = useSharedValue(-1);
+
+  useEffect(() => {
+    progress.value = withRepeat(
+      withTiming(1.5, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      false,
+    );
+  }, [progress]);
+
+  const shineStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: progress.value * Dimensions.get('window').width },
+      { rotate: '18deg' },
+    ],
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.shine, shineStyle]}
+      testID="leyenda-shine">
+      <LinearGradient
+        colors={[
+          'rgba(255,215,0,0)',
+          'rgba(255,215,0,0.35)',
+          'rgba(255,255,255,0.55)',
+          'rgba(255,215,0,0.35)',
+          'rgba(255,215,0,0)',
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.shineGradient}
+      />
+    </Animated.View>
+  );
+}
+
 function CardPhoto({ photoUrl }: { photoUrl: string }) {
   const [isImageLoading, setIsImageLoading] = useState(true);
 
@@ -183,6 +237,16 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     ...Shadows.card,
   },
+  cardLeyenda: {
+    borderRadius: Radius.xl,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    shadowColor: '#FFD700',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 12,
+  },
   cardGradient: {
     flex: 1,
     borderRadius: Radius.xl,
@@ -197,6 +261,32 @@ const styles = StyleSheet.create({
   image: {
     flex: 1,
     width: '100%',
+  },
+  shine: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 90,
+    left: -90,
+    zIndex: 5,
+  },
+  shineGradient: {
+    flex: 1,
+  },
+  crownBadge: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    width: 30,
+    height: 30,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    borderColor: '#FFD700',
+    zIndex: 12,
+    elevation: 12,
   },
   imageFull: {
     flex: 1,
