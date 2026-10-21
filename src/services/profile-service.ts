@@ -43,6 +43,12 @@ export type UserProfileData = {
   birthDate: string | null;
   bio: string | null;
   profilePrompts?: ProfilePromptAnswer[];
+  /**
+   * `false` para usuarios creados antes del lanzamiento de los prompts de
+   * perfil (usuarios legados): no están obligados a responderlos.
+   */
+  requiresProfilePrompts?: boolean;
+  profileComplete?: boolean;
   city: string | null;
   interestedIn: InterestedInCode | null;
   relationshipGoal: RelationshipGoalCode | null;

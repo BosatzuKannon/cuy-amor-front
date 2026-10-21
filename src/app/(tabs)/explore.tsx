@@ -16,7 +16,7 @@ import {
 import { ExploreCard } from '@/components/explore-card';
 import { SwipeCard, type SwipeDirection } from '@/components/swipe-card';
 import { SwipeTutorialOverlay } from '@/components/swipe-tutorial-overlay';
-import { CuyazoConfirmModal } from '@/components/cuyazo-confirm-modal';
+import { CuyazoConfirmModal, shouldHideCuyazoConfirm } from '@/components/cuyazo-confirm-modal';
 import { NinjaConfirmModal } from '@/components/ninja-confirm-modal';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { StreakModal } from '@/components/streak-modal';
@@ -274,7 +274,14 @@ export default function ExploreScreen() {
       void performAction('SUPER_LIKE');
       return;
     }
-    setShowCuyazoConfirm(true);
+    void (async () => {
+      const hide = await shouldHideCuyazoConfirm();
+      if (hide && coinsBalance >= 15) {
+        void performAction('SUPER_LIKE');
+        return;
+      }
+      setShowCuyazoConfirm(true);
+    })();
   }
 
   function handleSwipe(direction: SwipeDirection) {
@@ -675,7 +682,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   card: {
-    height: '60%',
+    flex: 1,
     width: '100%',
     borderRadius: Radius.xl,
   },

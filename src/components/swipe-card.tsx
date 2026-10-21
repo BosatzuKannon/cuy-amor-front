@@ -93,13 +93,15 @@ export function SwipeCard({
   const tap = Gesture.Tap()
     .enabled(enabled)
     .maxDuration(250)
+    .maxDistance(10)
+    .requireExternalGestureToFail(pan)
     .onEnd((_event, success) => {
       if (success && onPress) {
         runOnJS(onPress)();
       }
     });
 
-  const gesture = Gesture.Exclusive(pan, tap);
+  const gesture = Gesture.Simultaneous(pan, tap);
 
   const cardStyle = useAnimatedStyle(() => {
     const rotate = interpolate(

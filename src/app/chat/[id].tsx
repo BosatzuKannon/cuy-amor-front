@@ -1491,101 +1491,102 @@ export default function ChatScreen() {
             </Pressable>
           </View>
         ) : (
-          <View style={styles.inputWrap}>
-            <TextInput
-              value={input}
-              onChangeText={setInput}
-              placeholder="Escribe un mensaje..."
-              placeholderTextColor={Colors.textMuted}
-              multiline
-              style={styles.input}
-            />
-            <Pressable
-              onPress={() => void handlePickPhoto()}
-              disabled={uploadingMedia}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.zumbidoButton,
-                pressed && styles.zumbidoButtonPressed,
-                uploadingMedia && styles.zumbidoButtonDisabled,
-              ]}>
-              <AntDesign name="picture" size={22} color={Colors.primary} />
-            </Pressable>
-            <Pressable
-              onLongPress={() => void startRecording()}
-              delayLongPress={200}
-              disabled={uploadingMedia}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.zumbidoButton,
-                pressed && styles.zumbidoButtonPressed,
-                uploadingMedia && styles.zumbidoButtonDisabled,
-              ]}>
-              <MaterialIcons name="mic" size={24} color={Colors.primary} />
-            </Pressable>
-            <Pressable
-              onPress={openGiftModal}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.zumbidoButton,
-                pressed && styles.zumbidoButtonPressed,
-              ]}>
-              <AntDesign name="gift" size={22} color={Colors.primary} />
-            </Pressable>
-            <Pressable
-              onPress={() => void handleAiIcebreaker()}
-              disabled={aiLoading}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.zumbidoButton,
-                pressed && styles.zumbidoButtonPressed,
-                aiLoading && styles.zumbidoButtonDisabled,
-              ]}>
-              {aiLoading ? (
-                <ActivityIndicator size="small" color={Colors.primary} />
-              ) : (
-                <AppText variant="body" color={Colors.primary} style={styles.aiButtonText}>
-                  ✨
-                </AppText>
-              )}
-            </Pressable>
-            <Pressable
-              onPress={() => void handleSendZumbido()}
-              disabled={zumbidoCooldown}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.zumbidoButton,
-                pressed && styles.zumbidoButtonPressed,
-                zumbidoCooldown && styles.zumbidoButtonDisabled,
-              ]}>
-              <Image
-                source={require('@/assets/images/zumbidoo.png')}
-                style={styles.zumbidoIcon}
-                contentFit="contain"
+          <>
+            <View style={styles.giftStrip}>
+              <Pressable
+                onPress={() => void handleSendZumbido()}
+                disabled={zumbidoCooldown}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.stripButton,
+                  pressed && styles.stripButtonPressed,
+                  zumbidoCooldown && styles.stripButtonDisabled,
+                ]}>
+                <Image
+                  source={require('@/assets/images/zumbidoo.png')}
+                  style={styles.stripIcon}
+                  contentFit="contain"
+                />
+                {dailyZumbidosLeft > 0 ? (
+                  <View style={styles.stripFreeBadge}>
+                    <AppText variant="tag" color={Colors.white} style={styles.stripFreeBadgeText}>
+                      ¡Gratis!
+                    </AppText>
+                  </View>
+                ) : null}
+              </Pressable>
+              <Pressable
+                onPress={openGiftModal}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.stripButton,
+                  pressed && styles.stripButtonPressed,
+                ]}>
+                <AntDesign name="gift" size={22} color={Colors.primary} />
+              </Pressable>
+            </View>
+            <View style={styles.inputWrap}>
+              <TextInput
+                value={input}
+                onChangeText={setInput}
+                placeholder="Escribe un mensaje..."
+                placeholderTextColor={Colors.textMuted}
+                multiline
+                style={styles.input}
               />
-              {dailyZumbidosLeft > 0 ? (
-                <View style={styles.freeBadge}>
-                  <AppText
-                    variant="tag"
-                    color={Colors.white}
-                    style={styles.freeBadgeText}>
-                    ¡Gratis!
+              <Pressable
+                onPress={() => void handlePickPhoto()}
+                disabled={uploadingMedia}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && styles.actionButtonPressed,
+                  uploadingMedia && styles.actionButtonDisabled,
+                ]}>
+                <AntDesign name="picture" size={22} color={Colors.primary} />
+              </Pressable>
+              <Pressable
+                onLongPress={() => void startRecording()}
+                delayLongPress={200}
+                disabled={uploadingMedia}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && styles.actionButtonPressed,
+                  uploadingMedia && styles.actionButtonDisabled,
+                ]}>
+                <MaterialIcons name="mic" size={24} color={Colors.primary} />
+              </Pressable>
+              <Pressable
+                onPress={() => void handleAiIcebreaker()}
+                disabled={aiLoading}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && styles.actionButtonPressed,
+                  aiLoading && styles.actionButtonDisabled,
+                ]}>
+                {aiLoading ? (
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                ) : (
+                  <AppText variant="body" color={Colors.primary} style={styles.aiButtonText}>
+                    ✨
                   </AppText>
-                </View>
-              ) : null}
-            </Pressable>
-            <Pressable
-              onPress={() => void handleSend()}
-              disabled={sendDisabled}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.sendButton,
-                sendDisabled && styles.sendButtonDisabled,
-                { transform: [{ scale: pressed && !sendDisabled ? 0.9 : 1 }] },
-              ]}>
-              <AntDesign name="arrow-up" size={20} color={Colors.white} />
-            </Pressable>
-          </View>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => void handleSend()}
+                disabled={sendDisabled}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.sendButton,
+                  sendDisabled && styles.sendButtonDisabled,
+                  { transform: [{ scale: pressed && !sendDisabled ? 0.9 : 1 }] },
+                ]}>
+                <AntDesign name="arrow-up" size={20} color={Colors.white} />
+              </Pressable>
+            </View>
+          </>
         )}
       </KeyboardAvoidingView>
 
@@ -2097,13 +2098,65 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(220,20,60,0.55)',
   },
+  giftStrip: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.xs,
+  },
+  stripButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+    ...Shadows.button,
+  },
+  stripButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.92 }],
+  },
+  stripButtonDisabled: {
+    opacity: 0.45,
+  },
+  stripIcon: {
+    width: 28,
+    height: 28,
+  },
+  stripFreeBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: Colors.success,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: Colors.white,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  stripFreeBadgeText: {
+    color: Colors.white,
+    fontWeight: '800',
+    fontSize: 9,
+    lineHeight: 12,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
   inputWrap: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.xs,
     paddingBottom: Spacing.lg,
   },
   input: {
@@ -2119,7 +2172,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     ...Shadows.card,
   },
-  zumbidoButton: {
+  actionButton: {
     width: 44,
     height: 44,
     borderRadius: Radius.pill,
@@ -2128,15 +2181,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     ...Shadows.button,
   },
-  zumbidoButtonPressed: {
+  actionButtonPressed: {
     opacity: 0.8,
     transform: [{ scale: 0.92 }],
   },
-  zumbidoButtonDisabled: {
+  actionButtonDisabled: {
     opacity: 0.45,
-  },
-  aiButtonText: {
-    fontSize: 20,
   },
   zumbidoIcon: {
     width: 28,

@@ -37,6 +37,7 @@ export type UserProfile = {
   hobbies: string[];
   bio: string | null;
   profilePrompts: ProfilePromptAnswer[];
+  requiresProfilePrompts: boolean;
   city: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -57,6 +58,28 @@ export type UserProfile = {
   longestStreak: number;
   ninjaDaysLeft: number;
 };
+
+/**
+ * Un perfil está completo cuando tiene los datos básicos (fecha de
+ * nacimiento, género y al menos una foto).
+ *
+ * Los `profilePrompts` solo son obligatorios para los usuarios creados desde
+ * el lanzamiento de los prompts de perfil. Los usuarios legados (creados
+ * antes) mantienen su perfil completo aunque nunca hayan respondido prompts,
+ * de lo contrario quedaban atrapados en el onboarding.
+ */
+export function computeProfileComplete(profile: UserProfile): boolean {
+  const promptsSatisfied =
+    !profile.requiresProfilePrompts ||
+    (profile.profilePrompts?.length ?? 0) > 0;
+
+  return (
+    !!profile.birthDate &&
+    !!profile.gender &&
+    (profile.photos?.length ?? 0) > 0 &&
+    promptsSatisfied
+  );
+}
 
 export function toUserProfile(
   data: UserProfileData,
@@ -84,6 +107,7 @@ export function toUserProfile(
     profilePrompts: Array.isArray(data.profilePrompts)
       ? data.profilePrompts
       : [],
+    requiresProfilePrompts: data.requiresProfilePrompts !== false,
     city: data.city,
     latitude: data.latitude,
     longitude: data.longitude,
@@ -153,12 +177,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading });
   },
   setProfile: (profile) => {
-    const profileComplete =
-      !!profile &&
-      !!profile.birthDate &&
-      !!profile.gender &&
-      (profile.photos?.length ?? 0) > 0 &&
-      (profile.profilePrompts?.length ?? 0) > 0;
+    const computedComplete = profile ? computeProfileComplete(profile) : false;
+    // `profileComplete` es "sticky": una vez completado el onboarding el
+    // usuario nunca vuelve a él (p. ej. si borra sus prompts al editar su
+    // perfil), evitando el bucle de onboarding.
+    const profileComplete = computedComplete || get().profileComplete;
     console.log(
       '[useAuthStore] setProfile:',
       profileComplete ? 'complete' : 'incomplete',
@@ -174,11 +197,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
     const profile = { ...current, ...partial };
-    const profileComplete =
-      !!profile.birthDate &&
-      !!profile.gender &&
-      profile.photos.length > 0 &&
-      (profile.profilePrompts?.length ?? 0) > 0;
+    const computedComplete = computeProfileComplete(profile);
+    const profileComplete = computedComplete || get().profileComplete;
     set({ profile, profileComplete });
   },
     deductCoins: (amount) => {

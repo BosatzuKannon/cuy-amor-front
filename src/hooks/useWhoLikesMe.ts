@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useRef, useState } from 'react';
 
+import { shouldHideCuyazoConfirm } from '@/components/cuyazo-confirm-modal';
 import { toast } from '@/lib/toast';
 import {
   createInteraction,
@@ -207,6 +208,11 @@ export function useWhoLikesMe(pageSize: number) {
         const pending = entries.find((entry) => entry.liker.id === likerId);
         if (pending) {
           setActiveLiker(null);
+          const hide = await shouldHideCuyazoConfirm();
+          if (hide && coinsBalance >= 15) {
+            void performCuyazo(pending.liker.id);
+            return;
+          }
           setPendingCuyazo(pending.liker);
         }
         return;
@@ -234,7 +240,7 @@ export function useWhoLikesMe(pageSize: number) {
         setSubmitting(false);
       }
     },
-    [session, removeEntry, entries, isLeyenda, dailyCuyazosLeft, performCuyazo],
+    [session, removeEntry, entries, isLeyenda, dailyCuyazosLeft, performCuyazo, coinsBalance],
   );
 
   return {

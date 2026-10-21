@@ -231,8 +231,7 @@ function CardPhoto({ photoUrl }: { photoUrl: string }) {
 
 const styles = StyleSheet.create({
   card: {
-    //flex: 1,
-    height: '60%',
+    flex: 1,
     width: '100%',
     borderRadius: Radius.xl,
     ...Shadows.card,

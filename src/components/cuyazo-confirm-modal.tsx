@@ -1,5 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
-import { Modal, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
@@ -7,6 +9,28 @@ import { Colors } from '@/theme/colors';
 import { Radius, Shadows, Spacing } from '@/theme/layout';
 
 const CUYAZO_COST_IN_COINS = 15;
+const CUYAZO_HIDE_PREF_KEY = 'cuyazo_confirm_hide_v1';
+
+export async function shouldHideCuyazoConfirm(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(CUYAZO_HIDE_PREF_KEY);
+    return raw === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setHideCuyazoConfirm(hide: boolean): Promise<void> {
+  try {
+    if (hide) {
+      await AsyncStorage.setItem(CUYAZO_HIDE_PREF_KEY, 'true');
+    } else {
+      await AsyncStorage.removeItem(CUYAZO_HIDE_PREF_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 type Props = {
   visible: boolean;
@@ -14,7 +38,7 @@ type Props = {
   coinsBalance: number;
   loading?: boolean;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (skipPermanently?: boolean) => void;
 };
 
 export function CuyazoConfirmModal({
@@ -26,6 +50,20 @@ export function CuyazoConfirmModal({
   onConfirm,
 }: Props) {
   const hasEnoughCoins = coinsBalance >= CUYAZO_COST_IN_COINS;
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setDontShowAgain(false);
+    }
+  }, [visible]);
+
+  function handleConfirm() {
+    if (dontShowAgain) {
+      void setHideCuyazoConfirm(true);
+    }
+    onConfirm(dontShowAgain);
+  }
 
   return (
     <Modal
@@ -73,6 +111,21 @@ export function CuyazoConfirmModal({
               Tu saldo actual ({coinsBalance}) no es suficiente.
             </AppText>
           ) : null}
+          <Pressable
+            onPress={() => setDontShowAgain((v) => !v)}
+            style={styles.checkboxRow}
+            hitSlop={8}>
+            <View style={[styles.checkbox, dontShowAgain && styles.checkboxChecked]}>
+              {dontShowAgain ? (
+                <AppText variant="caption" color={Colors.white}>
+                  ✓
+                </AppText>
+              ) : null}
+            </View>
+            <AppText variant="caption" color={Colors.textMuted} style={styles.checkboxLabel}>
+              No volver a mostrar
+            </AppText>
+          </Pressable>
           <View style={styles.actions}>
             <AppButton
               label="Cancelar"
@@ -88,7 +141,7 @@ export function CuyazoConfirmModal({
               color="primary"
               loading={loading}
               disabled={!isFree && !hasEnoughCoins}
-              onPress={onConfirm}
+              onPress={handleConfirm}
               style={styles.action}
             />
           </View>
@@ -157,7 +210,30 @@ const styles = StyleSheet.create({
   },
   warning: {
     textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
     marginBottom: Spacing.lg,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  checkboxLabel: {
+    textAlign: 'left',
   },
   actions: {
     flexDirection: 'row',

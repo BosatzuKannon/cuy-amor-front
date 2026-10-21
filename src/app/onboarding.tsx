@@ -143,6 +143,7 @@ function SelectChip({
         variant="tag"
         color={selected ? Colors.white : Colors.text}
         style={[
+          styles.chipLabel,
           selected ? styles.chipLabelSelected : undefined,
           labelStyle,
         ]}
@@ -159,6 +160,10 @@ function SelectChip({
 
 export default function OnboardingScreen() {
   const session = useAuthStore((state) => state.session);
+  const profile = useAuthStore((state) => state.profile);
+  // Los usuarios creados antes del lanzamiento de los prompts de perfil
+  // (usuarios legados) no están obligados a responderlos.
+  const requiresPrompts = profile?.requiresProfilePrompts ?? true;
 
   const [step, setStep] = useState(1);
   const [birthDate, setBirthDate] = useState<Date | null>(null);
@@ -190,6 +195,7 @@ export default function OnboardingScreen() {
   const [invitedByCode, setInvitedByCode] = useState('');
 
   const locationRequested = useRef(false);
+  const prefillAppliedRef = useRef(false);
 
   const dayInputRef = useRef<TextInput>(null);
   const monthInputRef = useRef<TextInput>(null);
@@ -202,6 +208,47 @@ export default function OnboardingScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
+
+  // Precarga los datos que ya tiene el usuario para no obligarlo a
+  // repetirlos y para no perderlos al guardar el perfil.
+  useEffect(() => {
+    if (prefillAppliedRef.current || !profile) {
+      return;
+    }
+    prefillAppliedRef.current = true;
+
+    if (profile.birthDate) {
+      const [year, month, day] = profile.birthDate.split('-');
+      if (year && month && day) {
+        setDobDay(day);
+        setDobMonth(month);
+        setDobYear(year);
+        setBirthDate(new Date(Number(year), Number(month) - 1, Number(day)));
+      }
+    }
+    if (profile.gender) {
+      setGender(profile.gender);
+    }
+    if (profile.interestedIn) {
+      setInterestedIn(profile.interestedIn);
+    }
+    if (profile.relationshipGoal) {
+      setRelationshipGoal(profile.relationshipGoal);
+    }
+    if (profile.hobbies?.length) {
+      setHobbies(profile.hobbies);
+    }
+    if (profile.bio) {
+      setBio(profile.bio);
+    }
+    if (profile.profilePrompts?.length) {
+      setPromptAnswers(profile.profilePrompts);
+    }
+    const existingPhoto = profile.photos?.[0]?.url ?? null;
+    if (existingPhoto) {
+      setPhotoUrl(existingPhoto);
+    }
+  }, [profile]);
 
   function toggleHobby(hobby: string) {
     setHobbies((current) =>
@@ -434,13 +481,15 @@ export default function OnboardingScreen() {
     }
 
     if (step === 4) {
-      const validPrompts = sanitizeProfilePrompts(promptAnswers);
-      if (validPrompts.length === 0) {
-        toast.error(
-          'Responde al menos una pregunta',
-          'Contesta al menos un prompt para que tu perfil destaque.',
-        );
-        return;
+      if (requiresPrompts) {
+        const validPrompts = sanitizeProfilePrompts(promptAnswers);
+        if (validPrompts.length === 0) {
+          toast.error(
+            'Responde al menos una pregunta',
+            'Contesta al menos un prompt para que tu perfil destaque.',
+          );
+          return;
+        }
       }
       setStep(5);
       return;
@@ -475,7 +524,7 @@ export default function OnboardingScreen() {
     }
 
     const validPrompts = sanitizeProfilePrompts(promptAnswers);
-    if (validPrompts.length === 0) {
+    if (requiresPrompts && validPrompts.length === 0) {
       toast.error(
         'Responde al menos una pregunta',
         'Contesta al menos un prompt para completar tu registro.',
@@ -493,7 +542,9 @@ export default function OnboardingScreen() {
       relationshipGoal,
       hobbies,
       bio: bio.trim() || undefined,
-      profilePrompts: validPrompts,
+      // Si no hay respuestas no se envía el campo para no borrar los prompts
+      // que ya tenga guardados el usuario.
+      ...(validPrompts.length > 0 ? { profilePrompts: validPrompts } : {}),
       ...(location
         ? {
             latitude: Number(location.latitude.toFixed(6)),
@@ -1081,6 +1132,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+    width: '100%',
   },
   wrapper: {
     paddingHorizontal: Spacing.xl,
@@ -1140,11 +1192,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     padding: Spacing.xl,
     gap: Spacing.lg,
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
   },
   field: {
     width: '100%',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
     gap: Spacing.xs,
   },
   label: {
@@ -1173,6 +1225,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   promptChips: {
+    width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
@@ -1187,12 +1240,14 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   promptAnswerBlock: {
+    width: '100%',
     gap: Spacing.xs,
   },
   promptAnswerLabel: {
     color: Colors.primary,
   },
   bioSeparator: {
+    width: '100%',
     height: 1,
     backgroundColor: Colors.border,
     marginVertical: Spacing.sm,
@@ -1221,11 +1276,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   chipRow: {
+    width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
   },
   chipRowWrap: {
+    width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
@@ -1245,6 +1302,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   chip: {
+    maxWidth: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
@@ -1258,6 +1316,9 @@ const styles = StyleSheet.create({
   chipSelected: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+  },
+  chipLabel: {
+    flexShrink: 1,
   },
   chipLabelSelected: {
     fontWeight: '600',
