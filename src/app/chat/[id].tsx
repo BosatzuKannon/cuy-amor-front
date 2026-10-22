@@ -1367,12 +1367,33 @@ export default function ChatScreen() {
           </Pressable>
           {resolvedOtherUserId ? (
             <Pressable
+              onPress={() => void handleAiIcebreaker()}
+              disabled={aiLoading}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Sugerencias con IA"
+              style={({ pressed }) => [
+                styles.headerAiButton,
+                pressed && styles.pressed,
+                aiLoading && styles.headerAiButtonDisabled,
+              ]}>
+              {aiLoading ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <AppText variant="body" color={Colors.white} style={styles.headerAiText}>
+                  ✨
+                </AppText>
+              )}
+            </Pressable>
+          ) : null}
+          {resolvedOtherUserId ? (
+            <Pressable
               onPress={() => setShowUserActions(true)}
               hitSlop={12}
               accessibilityRole="button"
               accessibilityLabel="Más opciones"
               style={({ pressed }) => [
-                styles.headerMenuButton,
+                styles.backButton,
                 pressed && styles.pressed,
               ]}>
               <Ionicons
@@ -1508,11 +1529,7 @@ export default function ChatScreen() {
                   contentFit="contain"
                 />
                 {dailyZumbidosLeft > 0 ? (
-                  <View style={styles.stripFreeBadge}>
-                    <AppText variant="tag" color={Colors.white} style={styles.stripFreeBadgeText}>
-                      ¡Gratis!
-                    </AppText>
-                  </View>
+                  <View style={styles.stripFreeDot} />
                 ) : null}
               </Pressable>
               <Pressable
@@ -1526,25 +1543,27 @@ export default function ChatScreen() {
               </Pressable>
             </View>
             <View style={styles.inputWrap}>
-              <TextInput
-                value={input}
-                onChangeText={setInput}
-                placeholder="Escribe un mensaje..."
-                placeholderTextColor={Colors.textMuted}
-                multiline
-                style={styles.input}
-              />
-              <Pressable
-                onPress={() => void handlePickPhoto()}
-                disabled={uploadingMedia}
-                hitSlop={6}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  pressed && styles.actionButtonPressed,
-                  uploadingMedia && styles.actionButtonDisabled,
-                ]}>
-                <AntDesign name="picture" size={22} color={Colors.primary} />
-              </Pressable>
+              <View style={styles.inputFieldWrap}>
+                <TextInput
+                  value={input}
+                  onChangeText={setInput}
+                  placeholder="Escribe un mensaje..."
+                  placeholderTextColor={Colors.textMuted}
+                  multiline
+                  style={styles.input}
+                />
+                <Pressable
+                  onPress={() => void handlePickPhoto()}
+                  disabled={uploadingMedia}
+                  hitSlop={6}
+                  style={({ pressed }) => [
+                    styles.inputIconButton,
+                    pressed && styles.actionButtonPressed,
+                    uploadingMedia && styles.actionButtonDisabled,
+                  ]}>
+                  <AntDesign name="picture" size={20} color={Colors.primary} />
+                </Pressable>
+              </View>
               <Pressable
                 onLongPress={() => void startRecording()}
                 delayLongPress={200}
@@ -1556,23 +1575,6 @@ export default function ChatScreen() {
                   uploadingMedia && styles.actionButtonDisabled,
                 ]}>
                 <MaterialIcons name="mic" size={24} color={Colors.primary} />
-              </Pressable>
-              <Pressable
-                onPress={() => void handleAiIcebreaker()}
-                disabled={aiLoading}
-                hitSlop={6}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  pressed && styles.actionButtonPressed,
-                  aiLoading && styles.actionButtonDisabled,
-                ]}>
-                {aiLoading ? (
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                ) : (
-                  <AppText variant="body" color={Colors.primary} style={styles.aiButtonText}>
-                    ✨
-                  </AppText>
-                )}
               </Pressable>
               <Pressable
                 onPress={() => void handleSend()}
@@ -1700,12 +1702,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  headerMenuButton: {
+  headerAiButton: {
     width: 40,
     height: 40,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    marginRight: Spacing.xs,
+  },
+  headerAiButtonDisabled: {
+    opacity: 0.45,
+  },
+  headerAiText: {
+    fontSize: 18,
   },
   headerAvatar: {
     width: 30,
@@ -2126,29 +2136,16 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
   },
-  stripFreeBadge: {
+  stripFreeDot: {
     position: 'absolute',
-    top: -4,
-    right: -6,
+    top: -2,
+    right: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: Colors.success,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
     borderWidth: 1,
     borderColor: Colors.white,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  stripFreeBadgeText: {
-    color: Colors.white,
-    fontWeight: '800',
-    fontSize: 9,
-    lineHeight: 12,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
   },
   inputWrap: {
     width: '100%',
@@ -2159,18 +2156,30 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xs,
     paddingBottom: Spacing.lg,
   },
+  inputFieldWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: Radius.pill,
+    paddingLeft: Spacing.lg,
+    paddingRight: 4,
+    ...Shadows.card,
+  },
   input: {
     flex: 1,
     minHeight: 44,
     maxHeight: 120,
-    backgroundColor: Colors.white,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
+    paddingVertical: Spacing.sm,
     color: Colors.text,
     fontSize: 16,
-    ...Shadows.card,
+  },
+  inputIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionButton: {
     width: 44,

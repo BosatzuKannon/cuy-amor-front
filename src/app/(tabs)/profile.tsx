@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { AntDesign } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -210,7 +211,7 @@ export default function ProfileScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 20 },
+          { paddingTop: insets.top + 20, paddingBottom: Math.max(120, insets.bottom + 100) },
         ]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
@@ -463,6 +464,13 @@ export default function ProfileScreen() {
             onPress={handleLogout}
           />
         </View>
+
+        <AppText
+          variant="caption"
+          color={Colors.textMuted}
+          style={styles.versionText}>
+          Versión: {Constants.expoConfig?.version ?? '1.0.0'}
+        </AppText>
       </ScrollView>
 
       <Modal
@@ -755,6 +763,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.xs,
     paddingVertical: 1,
+  },
+  versionText: {
+    alignSelf: 'center',
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,

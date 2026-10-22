@@ -16,8 +16,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
-import { CuyazoConfirmModal } from '@/components/cuyazo-confirm-modal';
-import { shouldHideCuyazoConfirm } from '@/components/cuyazo-confirm-modal';
+import {
+  CuyazoConfirmModal,
+  shouldHideCuyazoConfirm,
+} from '@/components/cuyazo-confirm-modal';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { AppText } from '@/components/ui/app-text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
@@ -618,7 +620,17 @@ export default function HistoryScreen() {
           }
           if (action === 'SUPER_LIKE') {
             setMenuEntry(null);
-            setCuyazoEntry(entry);
+            void (async () => {
+              const isFreeCuyazo = isLeyenda && dailyCuyazosLeft > 0;
+              if (!isFreeCuyazo) {
+                const hide = await shouldHideCuyazoConfirm();
+                if (hide && coinsBalance >= 15) {
+                  void applyChange(entry, 'SUPER_LIKE');
+                  return;
+                }
+              }
+              setCuyazoEntry(entry);
+            })();
             return;
           }
           void applyChange(entry, action);
@@ -645,16 +657,7 @@ export default function HistoryScreen() {
           if (!entry || submittingId !== null) {
             return;
           }
-          void (async () => {
-            if (!isLeyenda || dailyCuyazosLeft === 0) {
-              const hide = await shouldHideCuyazoConfirm();
-              if (hide && coinsBalance >= 15) {
-                void applyChange(entry, 'SUPER_LIKE');
-                return;
-              }
-            }
-            void applyChange(entry, 'SUPER_LIKE');
-          })();
+          void applyChange(entry, 'SUPER_LIKE');
         }}
       />
 

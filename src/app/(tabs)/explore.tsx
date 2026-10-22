@@ -448,10 +448,7 @@ export default function ExploreScreen() {
             enabled={!noProfiles}
             onSwipe={handleSwipe}
             onPress={() => setIsProfileOpen(true)}>
-            <ExploreCard
-              profile={activeProfile}
-              onPress={() => setIsProfileOpen(true)}
-            />
+            <ExploreCard profile={activeProfile} />
           </SwipeCard>
         ) : (
           <View style={[styles.card, styles.emptyCard, styles.cardEmpty]}>

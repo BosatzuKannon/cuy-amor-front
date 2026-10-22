@@ -18,7 +18,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CuyLeyendaModal } from '@/components/cuy-leyenda-modal';
 import { CuyazoConfirmModal } from '@/components/cuyazo-confirm-modal';
-import { shouldHideCuyazoConfirm } from '@/components/cuyazo-confirm-modal';
 import { PretendienteAvatar } from '@/components/pretendiente-avatar';
 import { PublicProfileModal } from '@/components/public-profile-modal';
 import { AppText } from '@/components/ui/app-text';

@@ -2,7 +2,7 @@ import { AntDesign } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Dimensions, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -50,10 +50,9 @@ function cardGradientFor(gender: ExploreProfile['gender']): CardGradient {
 
 type ExploreCardProps = {
   profile: ExploreProfile;
-  onPress: () => void;
 };
 
-export function ExploreCard({ profile, onPress }: ExploreCardProps) {
+export function ExploreCard({ profile }: ExploreCardProps) {
   const gradient = cardGradientFor(profile.gender);
   const name = titleCase(profile.firstName ?? '');
   const age = ageFromBirthDate(profile.birthDate);
@@ -69,11 +68,7 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.cardGradient}>
-        <Pressable
-          style={styles.imageWrap}
-          onPress={onPress}
-          accessibilityRole="button"
-          accessibilityLabel={`Ver perfil público de ${name}`}>
+        <View style={styles.imageWrap}>
           {profile.photo ? (
             <CardPhoto key={profile.photo.url} photoUrl={profile.photo.url} />
           ) : (
@@ -162,7 +157,7 @@ export function ExploreCard({ profile, onPress }: ExploreCardProps) {
               </AppText>
             ) : null}
           </View>
-        </Pressable>
+        </View>
       </LinearGradient>
     </View>
   );

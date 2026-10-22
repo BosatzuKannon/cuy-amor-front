@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/app-button';
@@ -51,12 +51,14 @@ export function CuyazoConfirmModal({
 }: Props) {
   const hasEnoughCoins = coinsBalance >= CUYAZO_COST_IN_COINS;
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [wasVisible, setWasVisible] = useState(visible);
 
-  useEffect(() => {
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
     if (visible) {
       setDontShowAgain(false);
     }
-  }, [visible]);
+  }
 
   function handleConfirm() {
     if (dontShowAgain) {

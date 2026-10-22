@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback } from 'react';
-import { Dimensions, StyleSheet } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -11,8 +11,10 @@ import Animated, {
   withTiming,
   Extrapolation,
 } from 'react-native-reanimated';
+import { AntDesign } from '@expo/vector-icons';
 
 import { AppText } from '@/components/ui/app-text';
+import { Colors } from '@/theme/colors';
 import { Radius } from '@/theme/layout';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -90,18 +92,7 @@ export function SwipeCard({
       }
     });
 
-  const tap = Gesture.Tap()
-    .enabled(enabled)
-    .maxDuration(250)
-    .maxDistance(10)
-    .requireExternalGestureToFail(pan)
-    .onEnd((_event, success) => {
-      if (success && onPress) {
-        runOnJS(onPress)();
-      }
-    });
-
-  const gesture = Gesture.Simultaneous(pan, tap);
+  const gesture = Gesture.Exclusive(pan);
 
   const cardStyle = useAnimatedStyle(() => {
     const rotate = interpolate(
@@ -138,41 +129,62 @@ export function SwipeCard({
   }));
 
   return (
-    <GestureDetector gesture={gesture}>
-      <Animated.View style={[styles.card, cardStyle]}>
-        {children}
-        <Animated.View
-          style={[styles.badge, styles.likeBadge, likeStyle]}
-          pointerEvents="none">
-          <LinearGradient
-            colors={['#F472B6', '#DC143C']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.badgeInner}>
-            <AppText variant="h3" color="#FFFFFF" style={styles.badgeText}>
-              LIKE
-            </AppText>
-          </LinearGradient>
+    <View style={styles.wrapper}>
+      <GestureDetector gesture={gesture}>
+        <Animated.View style={[styles.card, cardStyle]}>
+          {children}
+          <Animated.View
+            style={[styles.badge, styles.likeBadge, likeStyle]}
+            pointerEvents="none">
+            <LinearGradient
+              colors={['#F472B6', '#DC143C']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.badgeInner}>
+              <AppText variant="h3" color="#FFFFFF" style={styles.badgeText}>
+                LIKE
+              </AppText>
+            </LinearGradient>
+          </Animated.View>
+          <Animated.View
+            style={[styles.badge, styles.passBadge, passStyle]}
+            pointerEvents="none">
+            <LinearGradient
+              colors={['#9CA3AF', '#4B5563']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.badgeInner}>
+              <AppText variant="h3" color="#FFFFFF" style={styles.badgeText}>
+                PASS
+              </AppText>
+            </LinearGradient>
+          </Animated.View>
         </Animated.View>
-        <Animated.View
-          style={[styles.badge, styles.passBadge, passStyle]}
-          pointerEvents="none">
-          <LinearGradient
-            colors={['#9CA3AF', '#4B5563']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.badgeInner}>
-            <AppText variant="h3" color="#FFFFFF" style={styles.badgeText}>
-              PASS
+      </GestureDetector>
+      {onPress && enabled ? (
+        <Pressable
+          onPress={onPress}
+          hitSlop={10}
+          style={styles.profileButton}
+          accessibilityRole="button"
+          accessibilityLabel="Ver perfil">
+          <View style={styles.profileButtonInner}>
+            <AntDesign name="info-circle" size={18} color={Colors.white} />
+            <AppText variant="tag" color={Colors.white} style={styles.profileButtonText}>
+              Ver perfil
             </AppText>
-          </LinearGradient>
-        </Animated.View>
-      </Animated.View>
-    </GestureDetector>
+          </View>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    width: '100%',
+  },
   card: {
     flex: 1,
     width: '100%',
@@ -200,5 +212,25 @@ const styles = StyleSheet.create({
   badgeText: {
     fontWeight: '800',
     letterSpacing: 2,
+  },
+  profileButton: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    zIndex: 30,
+  },
+  profileButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: Radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  profileButtonText: {
+    fontWeight: '600',
   },
 });
