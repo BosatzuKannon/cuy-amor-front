@@ -42,6 +42,12 @@ jobs:
       - name: Expo Prebuild
         run: npx expo prebuild --platform android --clean
 
+      - name: Ensure Gradle heap (R8 OOM guard)
+        run: |
+          cd android
+          echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m" >> gradle.properties
+          grep "org.gradle.jvmargs" gradle.properties
+
       - name: Decode Keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
